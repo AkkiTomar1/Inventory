@@ -16,73 +16,67 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await axios.get("/spot_text/api/users");
-      const users = res.data;
+      const res = await axios.post("/api/admin/login", {
+        email: form.email,
+        password: form.password,
+      });
 
-      // Validate user by email + password
-      const matchedUser = users.find(
-        (user) =>
-          user.email.trim().toLowerCase() === form.email.trim().toLowerCase() &&
-          user.password === form.password
-      );
+      const { tokenType, accessToken } = res.data;
 
-      if (matchedUser) {
-        console.log("✅ Login successful:", matchedUser);
-
-        // Save login flag & user data to localStorage
+      if (accessToken) {
         localStorage.setItem("auth", "true");
-        localStorage.setItem("user", JSON.stringify(matchedUser));
-
-        // Navigate to dashboard inside protected layout
+        localStorage.setItem("tokenType", tokenType);
+        localStorage.setItem("accessToken", accessToken);
         navigate("/dashboard", { replace: true });
       } else {
-        setError("Invalid email or password. Please try again.");
+        setError("Invalid credentials. Please try again.");
       }
     } catch (err) {
-      console.error("❌ Error fetching user data:", err);
-      setError("Server error. Please try again later.");
+      if (err.response) {
+        setError(err.response.data?.message || "Server error");
+      } else {
+        setError("Network error. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-amber-50 to-amber-100 p-6">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8">
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-extrabold text-amber-600">
+    <div className="min-h-screen bg-linear-to-br from-amber-50 via-white to-amber-100 flex items-center justify-center p-6">
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8">
+        <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 w-20 h-20 bg-linear-to-tr from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg">
+          <FaUserAlt className="text-white text-2xl" />
+        </div>
+
+        <div className="mt-10 text-center">
+          <h1 className="text-3xl font-extrabold text-amber-700">
             Welcome Back
           </h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Sign in to manage your inventory
+          <p className="text-gray-500 text-sm mt-1">
+            Sign in to manage your dashboard
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email */}
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="relative">
             <FaUserAlt className="absolute left-3 top-3.5 text-gray-400" />
             <input
               type="email"
-              name="email"
-              autoComplete="email"
               placeholder="Email address"
-              className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-amber-400 outline-none"
+              className="w-full pl-10 pr-3 py-2.5 bg-amber-50/40 rounded-xl border border-amber-200 focus:ring-2 focus:ring-amber-400 outline-none text-gray-700"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
             />
           </div>
 
-          {/* Password */}
           <div className="relative">
             <FaLock className="absolute left-3 top-3.5 text-gray-400" />
             <input
               type={show ? "text" : "password"}
-              name="password"
-              autoComplete="current-password"
               placeholder="Password"
-              className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-amber-400 outline-none"
+              className="w-full pl-10 pr-10 py-2.5 bg-amber-50/40 rounded-xl border border-amber-200 focus:ring-2 focus:ring-amber-400 outline-none text-gray-700"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
@@ -90,36 +84,32 @@ const Login = () => {
             <button
               type="button"
               onClick={() => setShow(!show)}
-              className="absolute right-3 top-3.5 text-gray-500 focus:outline-none"
+              className="absolute right-3 top-3.5 text-gray-500"
             >
               {show ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
 
-          {/* Error */}
           {error && (
-            <p className="text-center text-sm text-red-600 font-semibold">
+            <p className="text-center text-red-600 font-medium text-sm">
               {error}
             </p>
           )}
 
-          {/* Button */}
           <button
             type="submit"
             disabled={loading}
-            className={`w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-lg transition duration-300 shadow-md ${
-              loading && "opacity-70 cursor-not-allowed"
-            }`}
+            className="w-full bg-linear-to-r from-amber-500 to-amber-600 text-white font-bold py-2.5 rounded-xl shadow-lg hover:shadow-amber-300/50 transition-all duration-300 hover:scale-[1.02] disabled:opacity-60"
           >
             {loading ? "Signing In..." : "Sign In"}
           </button>
 
           <div className="flex justify-between items-center text-sm mt-2">
             <Link to="/signup" className="text-amber-600 hover:underline">
-              Create account
+              Create Account
             </Link>
             <Link to="/forgot" className="text-amber-600 hover:underline">
-              Forgot password?
+              Forgot Password?
             </Link>
           </div>
         </form>

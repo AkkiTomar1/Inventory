@@ -1,4 +1,3 @@
-// src/routes/Routing.jsx
 import React from "react";
 import {
   createBrowserRouter,
@@ -16,19 +15,46 @@ import Suppliers from "../supplier/Suppliers";
 import Layout from "./Layout";
 import Forgot from "../login/Forgot";
 import SubCategories from "../subcategories/SubCategories";
+import Purchase from "../parchase/Purchase";
+import { RequireAuth, RedirectIfAuth } from "./RequireAuth";
 
 const router = createBrowserRouter([
-  // Public auth pages
-  { path: "/login", element: <Login /> },
-  { path: "/signup", element: <Signup /> },
-  { path: "/forgot", element: <Forgot /> },
+  {
+    path: "/login",
+    element: (
+      <RedirectIfAuth>
+        <Login />
+      </RedirectIfAuth>
+    ),
+  },
+  {
+    path: "/signup",
+    element: (
+      <RedirectIfAuth>
+        <Signup />
+      </RedirectIfAuth>
+    ),
+  },
+  {
+    path: "/forgot",
+    element: (
+      <RedirectIfAuth>
+        <Forgot />
+      </RedirectIfAuth>
+    ),
+  },
 
   {
     path: "/",
-    element: <Layout />,
+    element: (
+      <RequireAuth>
+        <Layout />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <Navigate to="dashboard" replace /> },
       { path: "dashboard", element: <Dashboard /> },
+      { path: "purchase", element: <Purchase /> },
       { path: "categories", element: <Categories /> },
       { path: "subcategories", element: <SubCategories /> },
       { path: "products", element: <Products /> },

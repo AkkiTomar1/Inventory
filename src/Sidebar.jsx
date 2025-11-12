@@ -1,6 +1,5 @@
-// Sidebar.jsx
 import React, { useEffect, useState } from "react";
-import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaTachometerAlt,
   FaBoxes,
@@ -10,21 +9,27 @@ import {
   FaSignOutAlt,
   FaLayerGroup,
   FaChevronDown,
+  FaShoppingCart,
 } from "react-icons/fa";
+import useLogout from "./hooks/useLogout";
 
 const Sidebar = () => {
   const [expanded, setExpanded] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const [loadingLogout, setLoadingLogout] = useState(false);
+  const logout = useLogout();
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+  const handleLogout = async () => {
+    setLoadingLogout(true);
+    await logout({ callApi: true });
+    setLoadingLogout(false);
   };
 
   const menuItems = [
     { name: "Dashboard", icon: <FaTachometerAlt size={18} />, path: "/dashboard" },
+    { name: "Purchase", icon: <FaShoppingCart size={18} />, path: "/purchase" },
     { name: "Categories", icon: <FaBoxes size={18} />, path: "/categories" },
     { name: "Sub Categories", icon: <FaLayerGroup size={18} />, path: "/subcategories" },
     { name: "Products", icon: <FaBoxOpen size={18} />, path: "/products" },
@@ -35,8 +40,7 @@ const Sidebar = () => {
   useEffect(() => {
     const width = expanded ? 256 : 80;
     window.dispatchEvent(new CustomEvent("sidebarState", { detail: { expanded, width } }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, [expanded]);
 
   useEffect(() => {
     const handler = () => {
@@ -45,7 +49,6 @@ const Sidebar = () => {
       } else {
         setExpanded((v) => {
           const next = !v;
-          // dispatch new state
           const width = next ? 256 : 80;
           window.dispatchEvent(new CustomEvent("sidebarState", { detail: { expanded: next, width } }));
           return next;
@@ -56,7 +59,6 @@ const Sidebar = () => {
     return () => window.removeEventListener("toggleSidebar", handler);
   }, []);
 
-  // helper when user toggles expand from compact button
   const expandSidebar = () => {
     const next = true;
     setExpanded(next);
@@ -64,6 +66,7 @@ const Sidebar = () => {
   };
 
   const onNavigate = (path) => {
+    if (!path) return;
     navigate(path);
     if (window.innerWidth < 768) {
       setMobileOpen(false);
@@ -77,7 +80,7 @@ const Sidebar = () => {
 
   return (
     <div className={`${containerBase} ${desktopWidthClass} ${mobileVisibility}`}>
-      <div className={`h-full flex flex-col justify-between py-4 px-2 ${expanded ? "bg-linear-to-b from-gray-800 to-black" : "bg-gray-900"} shadow-2xl rounded-r-3xl`}>
+      <div className={`h-full bg-[#0f2027] flex flex-col justify-between py-4 px-2 ${expanded ? "bg-[#0f2027]" : "bg-gray-900"} shadow-2xl`}>
         <div>
           <div className={`hidden md:flex items-center justify-center py-4 border-b border-white/10 mb-3 ${expanded ? "" : "hidden"}`}>
             <h1 className="text-2xl font-bold text-gray-100 tracking-wide flex items-center">
@@ -93,10 +96,9 @@ const Sidebar = () => {
                 <button
                   key={idx}
                   onClick={() => onNavigate(item.path)}
-                  // hover + active + active-state classes added
                   className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 w-full focus:outline-none 
                     ${expanded ? "justify-start" : "justify-center"}
-                    ${isActive ? "bg-linear-to-l from-indigo-400 to-purple-400" : "hover:bg-linear-to-l from-indigo-400 to-purple-400"}
+                    ${isActive ? "bg-linear-to-l from-indigo-400 to-purple-400" : "hover:bg-white/10"}
                     active:bg-white/30`}
                   title={expanded ? "" : item.name}
                 >
@@ -116,7 +118,7 @@ const Sidebar = () => {
                 className="flex items-center gap-3 w-full p-3 rounded-xl text-white font-semibold hover:bg-red-500 hover:text-white transition-all duration-200 active:bg-red-600"
               >
                 <FaSignOutAlt size={18} />
-                <span>Logout</span>
+                <span>{loadingLogout ? "Logging out..." : "Logout"}</span>
               </button>
             </div>
           ) : (

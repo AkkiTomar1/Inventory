@@ -82,7 +82,7 @@ const Dashboard = () => {
       {/* SALES SUMMARY CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
-          className="relative overflow-hidden rounded-3xl p-5 shadow-2xl"
+          className=" overflow-hidden rounded-3xl p-5 shadow-2xl"
           style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}
         >
           <div className="flex items-start justify-between">
@@ -122,7 +122,7 @@ const Dashboard = () => {
         </div>
 
         <div
-          className="relative overflow-hidden rounded-3xl p-5 shadow-2xl"
+          className="overflow-hidden rounded-3xl p-5 shadow-2xl"
           style={{ background: "linear-gradient(135deg,#60a5fa,#6366f1)" }}
         >
           <div className="flex items-start justify-between">
