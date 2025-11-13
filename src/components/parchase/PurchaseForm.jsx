@@ -182,7 +182,7 @@ const PurchaseForm = ({ open, onClose, onSave, products = [] }) => {
             {/* Product Search */}
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-4">
-                <FaSearch className="text-green-600" />
+                <FaSearch className="text-amber-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Add Products</h3>
               </div>
               
@@ -224,7 +224,7 @@ const PurchaseForm = ({ open, onClose, onSave, products = [] }) => {
                 <button 
                   type="button" 
                   onClick={addItem}
-                  className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                  className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors"
                 >
                   <FaPlus /> Add Item
                 </button>
@@ -369,7 +369,7 @@ const PurchaseForm = ({ open, onClose, onSave, products = [] }) => {
               <button 
                 type="button" 
                 onClick={handleSaveAndPrint}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors"
               >
                 <FaPrint /> Save & Print
               </button>

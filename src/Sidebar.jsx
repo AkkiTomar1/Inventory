@@ -1,3 +1,4 @@
+// Sidebar.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -37,22 +38,24 @@ const Sidebar = () => {
     { name: "Profile", icon: <FaUserCircle size={18} />, path: "/profile" },
   ];
 
+  // Whenever expanded or mobileOpen changes, dispatch the correct width
   useEffect(() => {
-    const width = expanded ? 256 : 80;
-    window.dispatchEvent(new CustomEvent("sidebarState", { detail: { expanded, width } }));
-  }, [expanded]);
+    const isMobile = window.innerWidth < 768;
+    const width = isMobile ? (mobileOpen ? 256 : 0) : (expanded ? 256 : 80);
+    // expanded flag for consumer: only meaningful on desktop (for mobile keep false)
+    const expandedFlag = isMobile ? false : expanded;
+    window.dispatchEvent(new CustomEvent("sidebarState", { detail: { expanded: expandedFlag, width } }));
+  }, [expanded, mobileOpen]);
 
+  // Listen for the global toggleSidebar event
   useEffect(() => {
     const handler = () => {
       if (window.innerWidth < 768) {
+        // mobile: toggle drawer
         setMobileOpen((v) => !v);
       } else {
-        setExpanded((v) => {
-          const next = !v;
-          const width = next ? 256 : 80;
-          window.dispatchEvent(new CustomEvent("sidebarState", { detail: { expanded: next, width } }));
-          return next;
-        });
+        // desktop: toggle collapse/expand
+        setExpanded((prev) => !prev);
       }
     };
     window.addEventListener("toggleSidebar", handler);
@@ -62,15 +65,15 @@ const Sidebar = () => {
   const expandSidebar = () => {
     const next = true;
     setExpanded(next);
-    window.dispatchEvent(new CustomEvent("sidebarState", { detail: { expanded: next, width: 256 } }));
+    // dispatch will be handled by effect above
   };
 
   const onNavigate = (path) => {
     if (!path) return;
     navigate(path);
+    // if mobile, close and ensure width 0 is dispatched (effect will run because mobileOpen changes)
     if (window.innerWidth < 768) {
       setMobileOpen(false);
-      window.dispatchEvent(new CustomEvent("sidebarState", { detail: { expanded: false, width: 0 } }));
     }
   };
 
@@ -98,7 +101,7 @@ const Sidebar = () => {
                   onClick={() => onNavigate(item.path)}
                   className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 w-full focus:outline-none 
                     ${expanded ? "justify-start" : "justify-center"}
-                    ${isActive ? "bg-linear-to-l from-indigo-400 to-purple-400" : "hover:bg-white/10"}
+                    ${isActive ? "bg-linear-to-l from-amber-400 to-amber-500" : "hover:bg-white/10"}
                     active:bg-white/30`}
                   title={expanded ? "" : item.name}
                 >

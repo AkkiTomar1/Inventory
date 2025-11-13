@@ -51,7 +51,7 @@ const Purchase = ({ products = [] }) => {
             {/* New Invoice Button */}
             <button 
               onClick={() => setShowForm(true)} 
-              className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+              className="flex items-center gap-3 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
             >
               <FaPlus /> New Invoice
             </button>
@@ -62,8 +62,8 @@ const Purchase = ({ products = [] }) => {
         {invoices.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
             <div className="max-w-md mx-auto">
-              <div className="p-4 bg-blue-100 rounded-full inline-flex mb-6">
-                <FaReceipt className="text-blue-600 text-2xl" />
+              <div className="p-4 bg-amber-200 rounded-full inline-flex mb-6">
+                <FaReceipt className="text-amber-600 text-2xl" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">No Invoices Yet</h3>
               <p className="text-gray-600 mb-6">
@@ -71,7 +71,7 @@ const Purchase = ({ products = [] }) => {
               </p>
               <button 
                 onClick={() => setShowForm(true)} 
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
               >
                 <FaPlus /> Create First Invoice
               </button>
@@ -110,7 +110,7 @@ const Purchase = ({ products = [] }) => {
                       <span>{new Date(inv.date).toLocaleDateString()}</span>
                       <span className="px-2 py-1 bg-gray-100 rounded text-xs">{inv.paymentMethod}</span>
                     </div>
-                    <button className="text-blue-600 hover:text-blue-700 font-medium">
+                    <button className="bg-amber-500 hover:bg-amber-600 font-medium">
                       View
                     </button>
                   </div>

@@ -107,7 +107,7 @@ const Suppliers = () => {
   };
 
   return (
-    <div className="p-6 rounded-2xl shadow-2xl mt-12">
+    <div className="p-6 rounded-2xl shadow-2xl">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -130,7 +130,7 @@ const Suppliers = () => {
 
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 bg-linear-to-r from-emerald-500 to-green-600 text-white px-4 py-2 rounded-lg shadow hover:scale-[1.02] transition"
+            className="flex items-center gap-2 bg-linear-to-r from-amber-500 to-amber-600 text-white px-4 py-2 rounded-lg shadow hover:scale-[1.02] transition"
           >
             <FaPlus /> Add Supplier
           </button>

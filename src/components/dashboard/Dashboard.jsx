@@ -82,15 +82,16 @@ const Dashboard = () => {
       {/* SALES SUMMARY CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
-          className=" overflow-hidden rounded-3xl p-5 shadow-2xl"
+          className="relative overflow-hidden rounded-3xl p-6 shadow-2xl"
           style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}
         >
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-sm text-white/90">Today's Sale</div>
+              <div className="text-sm text-white/80">Today's Sale</div>
               <div className="mt-2 text-3xl font-extrabold text-white">₹10,000</div>
               <div className="mt-1 text-xs text-white/80">+8.5% vs yesterday</div>
             </div>
+
             <div className="flex flex-col items-end">
               <div className="p-2 rounded-md bg-white/20 text-white">
                 <FaRupeeSign className="text-2xl" />
@@ -98,19 +99,25 @@ const Dashboard = () => {
               <div className="mt-3">{drawSpark(sparkData.today)}</div>
             </div>
           </div>
-          <div className="absolute -right-8 -bottom-8 opacity-10 text-white text-8xl">💰</div>
+
+          {/* decorative background icon (SVG) */}
+          <div className="absolute -right-6 -bottom-6 opacity-5 pointer-events-none" aria-hidden>
+            <FaRupeeSign size={100} />
+          </div>
         </div>
 
+        {/* Card 2 - Last Week */}
         <div
           className="relative overflow-hidden rounded-3xl p-5 shadow-2xl"
           style={{ background: "linear-gradient(135deg,#fb923c,#f59e0b)" }}
         >
-          <div className="flex items-start justify-between">
+          <div className="relative flex items-start justify-between">
             <div>
               <div className="text-sm text-white/90">Last Week</div>
               <div className="mt-2 text-3xl font-extrabold text-white">₹72,500</div>
               <div className="mt-1 text-xs text-white/80">-3.2% vs previous week</div>
             </div>
+
             <div className="flex flex-col items-end">
               <div className="p-2 rounded-md bg-white/20 text-white">
                 <FaCalendarAlt className="text-2xl" />
@@ -118,11 +125,16 @@ const Dashboard = () => {
               <div className="mt-3">{drawSpark(sparkData.week)}</div>
             </div>
           </div>
-          <div className="absolute -right-8 -bottom-8 opacity-10 text-white text-8xl">📅</div>
+
+          {/* decorative background icon */}
+          <div className="absolute -right-6 -bottom-4 opacity-5 pointer-events-none" aria-hidden>
+            <FaCalendarAlt size={100} />
+          </div>
         </div>
 
+        {/* Card 3 - Last Month */}
         <div
-          className="overflow-hidden rounded-3xl p-5 shadow-2xl"
+          className="relative overflow-hidden rounded-3xl p-5 shadow-2xl"
           style={{ background: "linear-gradient(135deg,#60a5fa,#6366f1)" }}
         >
           <div className="flex items-start justify-between">
@@ -131,15 +143,21 @@ const Dashboard = () => {
               <div className="mt-2 text-3xl font-extrabold text-white">₹285,000</div>
               <div className="mt-1 text-xs text-white/80">+12.1% vs previous month</div>
             </div>
+
             <div className="flex flex-col items-end">
               <div className="p-2 rounded-md bg-white/20 text-white">
                 <FaRegCalendar className="text-2xl" />
               </div>
-              <div className="mt-3">{drawSpark(sparkData.month)}</div>
+              <div className="mt-5">{drawSpark(sparkData.month)}</div>
             </div>
           </div>
-          <div className="absolute -right-8 -bottom-8 opacity-10 text-white text-8xl">📈</div>
+
+          {/* decorative background icon */}
+          <div className="absolute -bottom-5 -right-2 opacity-5 pointer-events-none" aria-hidden>
+            <FaRegCalendar size={100} />
+          </div>
         </div>
+
       </div>
 
       {/* KPI CARDS USING CARD COMPONENT */}

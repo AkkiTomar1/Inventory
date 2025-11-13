@@ -131,7 +131,7 @@ const Products = () => {
   const getSubcategoryName = (id) => subcategories.find((s) => s.id === id)?.name ?? "-";
 
   return (
-    <div className="p-6 mt-12 rounded-2xl shadow-2xl">
+    <div className="p-6 rounded-2xl shadow-2xl">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">

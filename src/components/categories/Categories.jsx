@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
 import {
   FaBoxes,
   FaSearch,
@@ -9,39 +8,29 @@ import {
   FaSpinner,
   FaPlus,
 } from "react-icons/fa";
-import CategoryForm from "./CategoryForm"; // <-- your form file
+import CategoryForm from "./CategoryForm";
+import axiosInstance from "../../api/axiosInstance"; // ✅ use centralized axios
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(false); // list loading
-  const [saving, setSaving] = useState(false); // save button loading
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
   const [viewMode, setViewMode] = useState("grid");
   const [showModal, setShowModal] = useState(false);
 
-  // Build auth header if token exists
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("accessToken");
-    const tokenType = localStorage.getItem("tokenType") || "Bearer";
-    return token ? { Authorization: `${tokenType} ${token}` } : {};
-  };
-
-  // Clear session if unauthorized
   const clearSessionAndRedirect = () => {
     localStorage.clear();
     window.location.href = "/login";
   };
 
-  // Fetch categories
   const fetchCategories = async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await axios.get("/admin/categories", {
-        headers: getAuthHeaders(),
-      });
+      const res = await axiosInstance.get("/admin/categories");
       const data = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data?.data)
@@ -85,7 +74,6 @@ const Categories = () => {
         (c.categoryDescription || "").toLowerCase().includes(q);
       return catMatch;
     });
-    // copy before sorting
     return [...list].sort((a, b) =>
       sortAsc
         ? (a.categoryName || "").localeCompare(b.categoryName || "")
@@ -93,9 +81,8 @@ const Categories = () => {
     );
   }, [categories, search, sortAsc]);
 
-  // Called by CategoryForm when user saves — parent uses axios to save
+  // ✅ Add category using axiosInstance
   const handleAddCategory = async (formData) => {
-    // formData: { name, description, productCount, color }
     setSaving(true);
     try {
       const payload = {
@@ -106,12 +93,7 @@ const Categories = () => {
         isActive: true,
       };
 
-      await axios.post("/admin/categories", payload, {
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-      });
+      await axiosInstance.post("/admin/categories", payload);
 
       setShowModal(false);
       await fetchCategories();
@@ -128,7 +110,7 @@ const Categories = () => {
   };
 
   return (
-    <div className="p-6 mt-12">
+    <div className="p-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -137,7 +119,9 @@ const Categories = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Categories</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage and add new categories</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Manage and add new categories
+            </p>
           </div>
         </div>
 
@@ -177,7 +161,9 @@ const Categories = () => {
           <button
             onClick={() => setViewMode("grid")}
             className={`px-3 py-2 rounded-lg ${
-              viewMode === "grid" ? "bg-amber-100 font-semibold" : "bg-white border border-gray-200"
+              viewMode === "grid"
+                ? "bg-amber-100 font-semibold"
+                : "bg-white border border-gray-200"
             }`}
           >
             <FaTh />
@@ -185,7 +171,9 @@ const Categories = () => {
           <button
             onClick={() => setViewMode("table")}
             className={`px-3 py-2 rounded-lg ${
-              viewMode === "table" ? "bg-amber-100 font-semibold" : "bg-white border border-gray-200"
+              viewMode === "table"
+                ? "bg-amber-100 font-semibold"
+                : "bg-white border border-gray-200"
             }`}
           >
             <FaListUl />
@@ -210,8 +198,12 @@ const Categories = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.length === 0 ? (
             <div className="col-span-full text-center py-20 bg-white rounded-2xl shadow">
-              <div className="text-2xl text-gray-600 mb-3">No categories found</div>
-              <p className="text-gray-500">Try adjusting your search or reload data.</p>
+              <div className="text-2xl text-gray-600 mb-3">
+                No categories found
+              </div>
+              <p className="text-gray-500">
+                Try adjusting your search or reload data.
+              </p>
             </div>
           ) : (
             filtered.map((cat) => {
@@ -225,7 +217,9 @@ const Categories = () => {
                     <h3 className="text-lg font-semibold text-gray-800">
                       {cat.categoryName || "Unnamed"}
                     </h3>
-                    <p className="text-sm text-gray-600">{cat.categoryDescription || "-"}</p>
+                    <p className="text-sm text-gray-600">
+                      {cat.categoryDescription || "-"}
+                    </p>
                     <div className="flex gap-3 text-xs text-gray-500">
                       <span>Subs: {subCount}</span>
                       <span>Products: {prodCount}</span>
@@ -243,18 +237,30 @@ const Categories = () => {
             <thead className="bg-amber-100">
               <tr>
                 <th className="text-left px-4 py-3 text-sm text-gray-700">#</th>
-                <th className="text-left px-4 py-3 text-sm text-gray-700">Category</th>
-                <th className="text-left px-4 py-3 text-sm text-gray-700">Description</th>
-                <th className="text-center px-4 py-3 text-sm text-gray-700">Active</th>
+                <th className="text-left px-4 py-3 text-sm text-gray-700">
+                  Category
+                </th>
+                <th className="text-left px-4 py-3 text-sm text-gray-700">
+                  Description
+                </th>
+                <th className="text-center px-4 py-3 text-sm text-gray-700">
+                  Active
+                </th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((cat, idx) => (
                 <tr key={idx} className={idx % 2 ? "bg-gray-50" : ""}>
                   <td className="px-4 py-3">{idx + 1}</td>
-                  <td className="px-4 py-3 font-semibold">{cat.categoryName}</td>
-                  <td className="px-4 py-3 text-gray-600">{cat.categoryDescription}</td>
-                  <td className="px-4 py-3 text-center">{cat.isActive ? "Yes" : "No"}</td>
+                  <td className="px-4 py-3 font-semibold">
+                    {cat.categoryName}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {cat.categoryDescription}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {cat.isActive ? "Yes" : "No"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -262,17 +268,17 @@ const Categories = () => {
         </div>
       )}
 
-      {/* Render CategoryForm directly (CategoryForm itself renders the modal overlay) */}
+      {/* Category Form Modal */}
       {showModal && (
         <CategoryForm
           open={showModal}
           onClose={() => setShowModal(false)}
-          onSave={handleAddCategory} // parent performs axios POST
-          saving={saving} // pass saving so form can disable inputs/buttons
+          onSave={handleAddCategory}
+          saving={saving}
         />
       )}
 
-      {/* Show small saving indicator if desired */}
+      {/* Small Saving Indicator */}
       {saving && (
         <div className="fixed bottom-4 right-4 bg-black/70 text-white px-3 py-2 rounded">
           Saving...
