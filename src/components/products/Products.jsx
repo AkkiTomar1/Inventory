@@ -1,318 +1,513 @@
-import React, { useMemo, useState } from "react";
+// src/components/products/Products.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FaPlus,
-  FaEdit,
-  FaTrash,
-  FaSearch,
-  FaSortAmountDown,
-  FaBoxes,
+  FaSpinner,
   FaTh,
   FaListUl,
+  FaSearch,
+  FaBoxes,
+  FaChevronDown,
 } from "react-icons/fa";
 import ProductForm from "./ProductForm";
+import axiosInstance from "../../api/axiosInstance";
 
 const Products = () => {
-  // seed categories & subcats (replace with API)
-  const [categories] = useState([
-    { id: 1, name: "Food" },
-    { id: 2, name: "Beverages" },
-    { id: 3, name: "Dairy & Eggs" },
-    { id: 4, name: "Fresh Produce" },
-  ]);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
 
-  const [subcategories] = useState([
-    { id: 1, categoryId: 1, name: "Rice" },
-    { id: 2, categoryId: 1, name: "Atta & Flours" },
-    { id: 3, categoryId: 2, name: "Tea" },
-    { id: 4, categoryId: 3, name: "Milk" },
-    { id: 5, categoryId: 4, name: "Fruits" },
-  ]);
-
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      name: "Basmati Rice 5kg",
-      brand: "Royal",
-      categoryId: 1,
-      subcategoryId: 1,
-      packSize: "5 kg",
-      unit: "kg",
-      mrp: 599.0,
-      sellingPrice: 549.0,
-      stockQty: 25,
-      expiryDate: "",
-      barcode: "8901234567890",
-    },
-    {
-      id: 2,
-      name: "Dairy Milk 1L",
-      brand: "DailyFresh",
-      categoryId: 3,
-      subcategoryId: 4,
-      packSize: "1 L",
-      unit: "l",
-      mrp: 55.0,
-      sellingPrice: 50.0,
-      stockQty: 40,
-      expiryDate: "2025-12-01",
-      barcode: "8909876543210",
-    },
-  ]);
-
-  // ui state
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState("name"); // name | price | stock
   const [sortAsc, setSortAsc] = useState(true);
-  const [viewMode, setViewMode] = useState("table"); // 'table' or 'grid'
-  const [openForm, setOpenForm] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [viewMode, setViewMode] = useState("table");
 
-  // derived list: filter + sort
+  // active subcategory filter
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState("");
+
+  // stock filter: "", "in", "low", "out"
+  const [stockFilter, setStockFilter] = useState("");
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+
+  // dropdown open state
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  const clearSessionAndRedirect = () => {
+    localStorage.clear();
+    window.location.href = "/login";
+  };
+
+  // ---------- API CALLS ----------
+  const fetchProducts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await axiosInstance.get("/admin/products");
+      const baseList = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+
+      const listWithSupplier = await Promise.all(
+        baseList.map(async (p) => {
+          const id = p.productId ?? p.id;
+          if (!id) return p;
+          if (p.supplierName) return p;
+
+          try {
+            const detailRes = await axiosInstance.get(`/admin/products/${encodeURIComponent(id)}`);
+            const detail = Array.isArray(detailRes.data) ? detailRes.data[0] : detailRes.data?.data || detailRes.data || {};
+            return {
+              ...p,
+              supplierName: detail.supplierName != null ? detail.supplierName : p.supplierName ?? null,
+            };
+          } catch (err) {
+            console.error("fetch single product error", err);
+            return p;
+          }
+        })
+      );
+
+      setProducts(listWithSupplier);
+    } catch (err) {
+      console.error("fetchProducts error", err);
+      if (err?.response?.status === 401) {
+        clearSessionAndRedirect();
+        return;
+      }
+      setError("Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/admin/product-categories");
+      const listRaw = res.data?.data || res.data || [];
+      const list = Array.isArray(listRaw) ? listRaw : [];
+      setCategories(
+        list.map((c) => ({
+          categoryId: c.categoryId ?? c.id ?? null,
+          categoryName: c.categoryName ?? c.name ?? "",
+        }))
+      );
+    } catch (err) {
+      console.error("fetchCategories error", err);
+    }
+  };
+
+  const fetchSubcategories = async () => {
+    try {
+      const res = await axiosInstance.get("/admin/subcategories");
+      const raw = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      const list = raw.map((s) => ({
+        id: s.id,
+        name: s.name,
+        categoryId: s.categoryId,
+        categoryName: s.categoryName,
+      }));
+      setSubcategories(list);
+    } catch (err) {
+      console.error("fetchSubcategories error", err);
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await axiosInstance.get("/admin/suppliers");
+      const raw = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      const list = raw.map((s) => ({ id: s.id, name: s.name }));
+      setSuppliers(list);
+    } catch (err) {
+      console.error("fetchSuppliers error", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+    fetchSubcategories();
+    fetchSuppliers();
+    // click outside to close dropdown
+    const onDocClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------- HELPERS ----------
+  const productToTitle = (p) => p.productName ?? p.name ?? "Unnamed product";
+
+  const stockBadge = (stockVal) => {
+    const stock = Number(stockVal ?? 0);
+    if (stock <= 0) return { text: "Out", className: "bg-red-100 text-red-700" };
+    if (stock < 10) return { text: "Low", className: "bg-orange-100 text-orange-700" };
+    return { text: "In Stock", className: "bg-green-100 text-green-700" };
+  };
+
+  const getCategoryName = (p) => {
+    if (p.categoryName) return p.categoryName;
+    const cid = p.categoryId ?? null;
+    if (cid == null) return "-";
+    const found = categories.find((c) => String(c.categoryId) === String(cid));
+    return found?.categoryName || "-";
+  };
+
+  const getSubCategoryName = (p) => {
+    if (p.subCategoryName) return p.subCategoryName;
+    const sid = p.subCategoryId ?? null;
+    if (sid == null) return "-";
+    const found = subcategories.find((s) => String(s.id) === String(sid));
+    return found?.name || "-";
+  };
+
+  const getSupplierName = (p) => p.supplierName || "-";
+
+  const currentSubcategoryName =
+    selectedSubcategoryId &&
+    subcategories.find((s) => String(s.id) === String(selectedSubcategoryId))?.name
+      ? subcategories.find((s) => String(s.id) === String(selectedSubcategoryId))?.name
+      : "All Products";
+
+  // ---------- FILTER + SORT ----------
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = products.filter((p) =>
-      `${p.name} ${p.brand} ${p.barcode}`.toLowerCase().includes(q)
+    let list = [...products];
+
+    if (selectedSubcategoryId) {
+      list = list.filter((p) => p.subCategoryId != null && String(p.subCategoryId) === String(selectedSubcategoryId));
+    }
+
+    if (stockFilter) {
+      list = list.filter((p) => {
+        const stock = Number(p.stock ?? 0);
+        if (stockFilter === "out") return stock <= 0;
+        if (stockFilter === "low") return stock > 0 && stock < 10;
+        if (stockFilter === "in") return stock >= 10;
+        return true;
+      });
+    }
+
+    if (q) {
+      list = list.filter((p) => {
+        const name = (p.productName ?? "").toString().toLowerCase();
+        const price = (p.price ?? "").toString().toLowerCase();
+        const catName = getCategoryName(p).toLowerCase();
+        const subName = getSubCategoryName(p).toLowerCase();
+        const supplier = getSupplierName(p).toLowerCase();
+        return name.includes(q) || price.includes(q) || catName.includes(q) || subName.includes(q) || supplier.includes(q);
+      });
+    }
+
+    return list.sort((a, b) =>
+      sortAsc ? (productToTitle(a) || "").localeCompare(productToTitle(b) || "") : (productToTitle(b) || "").localeCompare(productToTitle(a) || "")
     );
+  }, [products, search, sortAsc, categories, subcategories, selectedSubcategoryId, stockFilter]);
 
-    return list.sort((a, b) => {
-      let aVal, bVal;
-      if (sortKey === "price") {
-        aVal = a.sellingPrice ?? a.mrp ?? 0;
-        bVal = b.sellingPrice ?? b.mrp ?? 0;
-      } else if (sortKey === "stock") {
-        aVal = a.stockQty ?? 0;
-        bVal = b.stockQty ?? 0;
-      } else {
-        aVal = a.name.toLowerCase();
-        bVal = b.name.toLowerCase();
-      }
-      if (aVal < bVal) return sortAsc ? -1 : 1;
-      if (aVal > bVal) return sortAsc ? 1 : -1;
-      return 0;
-    });
-  }, [products, search, sortKey, sortAsc]);
-
-  const handleAdd = () => {
-    setEditing(null);
-    setOpenForm(true);
+  // ---------- HANDLERS ----------
+  const openCreate = () => {
+    setEditingProduct(null);
+    setShowForm(true);
   };
 
-  const handleEdit = (p) => {
-    setEditing(p);
-    setOpenForm(true);
+  const openEdit = (p) => {
+    const form = {
+      productId: p.productId ?? p.id ?? null,
+      productName: p.productName ?? "",
+      price: p.price ?? 0,
+      stock: p.stock ?? 0,
+      categoryId: p.categoryId ?? null,
+      subCategoryId: p.subCategoryId ?? null,
+      supplierName: p.supplierName ?? "",
+    };
+    setEditingProduct(form);
+    setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    const p = products.find((x) => x.id === id);
-    if (!p) return;
-    if (window.confirm(`Delete "${p.name}"? This cannot be undone.`)) {
-      setProducts((prev) => prev.filter((x) => x.id !== id));
-    }
-  };
-
-  const handleSave = (formData) => {
-    if (editing) {
-      setProducts((prev) =>
-        prev.map((p) => (p.id === editing.id ? { ...p, ...formData } : p))
-      );
-    } else {
-      const newProduct = {
-        id: products.length ? Math.max(...products.map((p) => p.id)) + 1 : 1,
-        ...formData,
+  const handleSave = async (data) => {
+    setSaving(true);
+    setError("");
+    try {
+      const isEdit = !!data.productId;
+      const category = categories.find((c) => data.categoryId != null && String(c.categoryId) === String(data.categoryId));
+      const subcat = subcategories.find((s) => data.subCategoryId != null && String(s.id) === String(data.subCategoryId));
+      const payload = {
+        productId: data.productId ?? 0,
+        productName: data.productName,
+        price: Number(data.price),
+        stock: Number(data.stock),
+        categoryId: data.categoryId != null ? Number(data.categoryId) : 0,
+        categoryName: category?.categoryName || "",
+        subCategoryId: data.subCategoryId != null ? Number(data.subCategoryId) : 0,
+        subCategoryName: subcat?.name || "",
+        supplierName: data.supplierName || "",
       };
-      // keep previous behavior: new product on top (admin preference)
-      setProducts((prev) => [newProduct, ...prev]);
+      if (isEdit) {
+        await axiosInstance.put(`/admin/products/${encodeURIComponent(data.productId)}`, payload);
+      } else {
+        await axiosInstance.post("/admin/products", payload);
+      }
+      await fetchProducts();
+      setShowForm(false);
+      setEditingProduct(null);
+    } catch (err) {
+      console.error("save product error", err);
+      if (err?.response?.status === 401) {
+        clearSessionAndRedirect();
+        return;
+      }
+      setError(err?.response?.data?.message || "Failed to save product");
+      alert(err?.response?.data?.message || "Failed to save product");
+    } finally {
+      setSaving(false);
     }
-    setOpenForm(false);
-    setEditing(null);
   };
 
-  const getCategoryName = (id) => categories.find((c) => c.id === id)?.name ?? "-";
-  const getSubcategoryName = (id) => subcategories.find((s) => s.id === id)?.name ?? "-";
+  const handleDelete = async (p) => {
+    const id = p.productId ?? p.id;
+    if (!id) return alert("Invalid product id");
+    if (!window.confirm(`Delete product "${productToTitle(p)}"? This cannot be undone.`)) return;
+    setSaving(true);
+    try {
+      await axiosInstance.delete(`/admin/products/${encodeURIComponent(id)}`);
+      await fetchProducts();
+    } catch (err) {
+      console.error("delete product error", err);
+      if (err?.response?.status === 401) {
+        clearSessionAndRedirect();
+        return;
+      }
+      alert(err?.response?.data?.message || "Failed to delete product");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ---------- UI ----------
+  const stockLabel = stockFilter === "" ? "All" : stockFilter === "in" ? "In" : stockFilter === "low" ? "Low" : "Out";
 
   return (
-    <div className="p-6 rounded-2xl shadow-2xl">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-amber-50 rounded-lg">
-            <FaBoxes className="text-amber-600" />
+    <div>
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center bg-[linear-gradient(135deg,#fb923c,#60a5fa)] text-amber-200 md:justify-between rounded-t-2xl p-3">
+        <div className="flex items-center gap-4">
+          <div className="rounded-lg bg-amber-50 p-3 flex items-center justify-center">
+            <FaBoxes className="text-amber-600 text-xl" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Products</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage grocery products — add, edit or remove items.</p>
+            <h1 className="text-2xl font-bold text-gray-100">Products</h1>
+            <p className="text-sm text-gray-50 mt-1">Manage products with price, stock, categories & suppliers.</p>
+            <p className="text-xs text-gray-100/90 mt-1">Active Subcategory: <span className="font-semibold">{currentSubcategoryName}</span></p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex gap-4 bg-white p-3 rounded-2xl shadow-sm items-center">
+          <div className="hidden sm:flex items-center gap-4 bg-white p-2 rounded-xl shadow-sm text-gray-700">
             <div className="text-sm text-gray-600">
               <div className="text-xs text-gray-400">Products</div>
-              <div className="text-lg font-semibold">{products.length}</div>
+              <div className="text-lg font-semibold">{filtered.length}</div>
             </div>
             <div className="border-l h-8" />
             <div className="text-sm text-gray-600">
-              <div className="text-xs text-gray-400">Categories</div>
-              <div className="text-lg font-semibold">{categories.length}</div>
+              <div className="text-xs text-gray-400">Subcategories</div>
+              <div className="text-lg font-semibold">{subcategories.length}</div>
             </div>
           </div>
 
-          <button
-            onClick={handleAdd}
-            className="flex items-center gap-2 bg-linear-to-r from-amber-500 to-amber-600 text-white px-4 py-2 rounded-lg shadow hover:scale-[1.02] transition"
-          >
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-black hover:bg-amber-500 transition">
             <FaPlus /> Add Product
           </button>
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm w-full sm:w-[420px]">
-            <FaSearch className="text-gray-400" />
-            <input
-              className="ml-3 w-full outline-none"
-              placeholder="Search by name, brand or barcode..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+      {/* FILTER BAR */}
+      <div className="bg-[linear-gradient(135deg,#fb923c,#60a5fa)] text-black rounded-b-2xl p-4 shadow-sm mb-12">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* Search + Sort */}
+          <div className="flex items-center gap-3 w-full sm:w-[480px]">
+            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 w-full">
+              <FaSearch className="text-gray-400" />
+              <input className="ml-3 w-full outline-none text-sm" placeholder="Search products, category, subcategory or supplier..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              {search && <button onClick={() => setSearch("")} className="ml-2 text-xs text-gray-500">Clear</button>}
+            </div>
+            <button onClick={() => setSortAsc((v) => !v)} className="flex items-center justify-center gap-1 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-black transition shadow-sm">
+              <span className="font-semibold text-sm">{sortAsc ? "A→Z" : "Z→A"}</span>
+            </button>
           </div>
 
-          <select
-            value={sortKey}
-            onChange={(e) => setSortKey(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2"
-          >
-            <option value="name">Sort: Name</option>
-            <option value="price">Sort: Price</option>
-            <option value="stock">Sort: Stock</option>
-          </select>
+          {/* Subcategory select + unified dropdown (stock + view) */}
+          <div className="flex items-center gap-2">
+            <select className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm" value={selectedSubcategoryId} onChange={(e) => setSelectedSubcategoryId(e.target.value)}>
+              <option value="">All Products</option>
+              {subcategories.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
 
-          <button
-            onClick={() => setSortAsc((v) => !v)}
-            className="border border-gray-300 rounded-lg px-3 py-2 hover:bg-gray-100"
-            title="Toggle sort direction"
-          >
-            <FaSortAmountDown />
-          </button>
+            {/* Unified dropdown */}
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm"
+              >
+                <span className="font-medium">{stockLabel}</span>
+                <FaChevronDown />
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="p-2">
+                    <div className="text-xs text-gray-500 mb-2">Stock filter</div>
+                    <div className="flex flex-col gap-1">
+                      <button onClick={() => { setStockFilter(""); setMenuOpen(false); }} className={`text-left px-3 py-2 rounded ${stockFilter === "" ? "bg-amber-100 font-semibold" : "hover:bg-gray-50"}`}>All</button>
+                      <button onClick={() => { setStockFilter("in"); setMenuOpen(false); }} className={`text-left px-3 py-2 rounded ${stockFilter === "in" ? "bg-amber-100 font-semibold" : "hover:bg-gray-50"}`}>In Stock</button>
+                      <button onClick={() => { setStockFilter("low"); setMenuOpen(false); }} className={`text-left px-3 py-2 rounded ${stockFilter === "low" ? "bg-amber-100 font-semibold" : "hover:bg-gray-50"}`}>Low Stock</button>
+                      <button onClick={() => { setStockFilter("out"); setMenuOpen(false); }} className={`text-left px-3 py-2 rounded ${stockFilter === "out" ? "bg-amber-100 font-semibold" : "hover:bg-gray-50"}`}>Out of Stock</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* small view buttons kept for quick access (optional) */}
+            <button onClick={() => setViewMode("grid")} className={`px-3 py-2 rounded-lg ${viewMode === "grid" ? "bg-amber-300 font-semibold" : "bg-white border border-gray-200"}`}>
+              <FaTh />
+            </button>
+            <button onClick={() => setViewMode("table")} className={`px-3 py-2 rounded-lg ${viewMode === "table" ? "bg-amber-300 font-semibold" : "bg-white border border-gray-200"}`}>
+              <FaListUl />
+            </button>
+          </div>
         </div>
-
-        <div className="flex items-center gap-3">
-  <button
-    onClick={() => setViewMode("grid")}
-    className={`px-3 py-2 rounded-lg ${viewMode === "grid" ? "bg-amber-100 font-semibold" : "bg-white border border-gray-200"}`}
-    title="Grid"
-  >
-    <FaTh />
-  </button>
-  <button
-    onClick={() => setViewMode("table")}
-    className={`px-3 py-2 rounded-lg ${viewMode === "table" ? "bg-amber-100 font-semibold" : "bg-white border border-gray-200"}`}
-    title="Table"
-  >
-    <FaListUl />
-  </button>
-</div>
       </div>
 
-      {/* Content */}
-      {viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((p) => (
-            <div key={p.id} className="bg-white rounded-2xl p-5 shadow hover:shadow-lg transition">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-800">{p.name}</h3>
-                  <div className="text-sm text-gray-500 mt-1">{p.brand}</div>
+      {/* CONTENT */}
+      {loading ? (
+        <div className="py-10 flex justify-center">
+          <FaSpinner className="animate-spin text-amber-500 text-2xl" />
+        </div>
+      ) : viewMode === "grid" ? (
+        filtered.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-2xl shadow">
+            <div className="text-2xl text-gray-600 mb-3">{error || "No products found"}</div>
+            {!error && <p className="text-gray-500">Try adjusting your search or switch subcategory filter.</p>}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filtered.map((p, idx) => {
+              const id = p.productId ?? p.id ?? idx;
+              const title = productToTitle(p);
+              const price = Number(p.price ?? 0);
+              const stock = Number(p.stock ?? 0);
+              const badge = stockBadge(stock);
+              const categoryName = getCategoryName(p);
+              const subCategoryName = getSubCategoryName(p);
+              const supplierName = getSupplierName(p);
 
-                  <div className="mt-3 text-sm text-gray-600 space-y-1">
-                    <div>Category: {getCategoryName(p.categoryId)}</div>
-                    <div>Subcategory: {getSubcategoryName(p.subcategoryId)}</div>
-                    <div>Pack: {p.packSize} • {p.unit}</div>
+              return (
+                <div key={id} className="p-4 bg-white rounded-2xl shadow hover:shadow-lg transition flex flex-col justify-between h-full">
+                  <div>
+                    <div className="font-semibold text-lg truncate">{title}</div>
+                    <div className="mt-1 text-xs text-gray-600 space-y-0.5">
+                      <div>Category: <span className="font-medium">{categoryName}</span></div>
+                      <div>Subcategory: <span className="font-medium">{subCategoryName}</span></div>
+                      <div>Supplier: <span className="font-medium">{supplierName}</span></div>
+                    </div>
+                    <div className="mt-2 text-sm text-gray-700">Price: <span className="font-semibold text-amber-700">₹{price.toLocaleString("en-IN")}</span></div>
                   </div>
 
                   <div className="mt-4 flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-800">₹{(p.sellingPrice ?? 0).toFixed(2)}</div>
-                    <div className="text-xs bg-gray-50 px-2 py-1 rounded text-gray-600">Stock: {p.stockQty}</div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${badge.className}`}>{badge.text}</span>
+                      <span>Stock: <span className="font-semibold text-gray-900">{stock}</span></span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(p)} className="px-3 py-1 bg-amber-100 text-amber-700 rounded text-sm">Edit</button>
+                      <button onClick={() => handleDelete(p)} className="px-3 py-1 bg-red-50 text-red-600 rounded text-sm">Delete</button>
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex flex-col items-end gap-3">
-                  <div className="text-gray-400 text-sm">ID: {p.id}</div>
-                  <div className="flex gap-2 mt-6">
-                    <button onClick={() => handleEdit(p)} className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-amber-50" title="Edit">
-                      <FaEdit className="text-amber-600" />
-                    </button>
-                    <button onClick={() => handleDelete(p.id)} className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-red-50" title="Delete">
-                      <FaTrash className="text-red-600" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {filtered.length === 0 && (
-            <div className="col-span-full text-center py-20 bg-white rounded-2xl shadow">
-              <h3 className="text-gray-600 font-semibold mb-2">No products found</h3>
-              <p className="text-gray-500 mb-4">Try changing filters or add a new product.</p>
-              <button onClick={handleAdd} className="bg-amber-500 text-white px-4 py-2 rounded-lg">Add Product</button>
-            </div>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )
       ) : (
-        <div className="bg-white rounded-2xl shadow-md overflow-x-auto">
-          <table className="min-w-full border-collapse">
-            <thead className="bg-amber-100">
+        <div className="bg-white rounded-2xl shadow overflow-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-linear-to-l from-amber-900 via-amber-950 to-amber-900">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">#</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Brand</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Category</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Pack</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Price</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Stock</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Actions</th>
+                <th className="text-left px-3 py-2 text-xs text-gray-100">Id</th>
+                <th className="text-left px-3 py-2 text-xs text-gray-100">Product</th>
+                <th className="text-left px-3 py-2 text-xs text-gray-100">Category</th>
+                <th className="text-left px-3 py-2 text-xs text-gray-100">Subcategory</th>
+                <th className="text-left px-3 py-2 text-xs text-gray-100">Supplier</th>
+                <th className="text-right px-3 py-2 text-xs text-gray-100">Price</th>
+                <th className="text-left px-3 py-2 text-xs text-gray-100">Stock</th>
+                <th className="text-center px-3 py-2 text-xs text-gray-100">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-6 text-gray-500">No products found.</td>
+                  <td colSpan={8} className="px-3 py-6 text-center text-sm text-gray-500">{error || "No products found"}</td>
                 </tr>
               ) : (
-                filtered.map((p, idx) => (
-                  <tr key={p.id} className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-amber-50 transition`}>
-                    <td className="px-4 py-3 border border-gray-200">{p.id}</td>
-                    <td className="px-4 py-3 border border-gray-200 font-semibold text-gray-800">{p.name}</td>
-                    <td className="px-4 py-3 border border-gray-200 text-gray-600">{p.brand}</td>
-                    <td className="px-4 py-3 border border-gray-200 text-gray-600">{getCategoryName(p.categoryId)}</td>
-                    <td className="px-4 py-3 border border-gray-200 text-gray-600">{p.packSize}</td>
-                    <td className="px-4 py-3 border border-gray-200 text-right font-semibold">₹{(p.sellingPrice ?? 0).toFixed(2)}</td>
-                    <td className="px-4 py-3 border border-gray-200 text-right">{p.stockQty}</td>
-                    <td className="px-4 py-3 border border-gray-200 text-center">
-                      <div className="flex justify-center gap-3">
-                        <button onClick={() => handleEdit(p)} className="text-blue-600 hover:text-blue-800"><FaEdit /></button>
-                        <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:text-red-800"><FaTrash /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filtered.map((p, i) => {
+                  const title = productToTitle(p);
+                  const price = Number(p.price ?? 0);
+                  const stock = Number(p.stock ?? 0);
+                  const categoryName = getCategoryName(p);
+                  const subCategoryName = getSubCategoryName(p);
+                  const supplierName = getSupplierName(p);
+
+                  return (
+                    <tr key={p.productId ?? p.id ?? i} className={i % 2 ? "bg-gray-50" : "bg-white"}>
+                      <td className="px-3 py-2">{i + 1}</td>
+                      <td className="px-3 py-2 font-medium">{title}</td>
+                      <td className="px-3 py-2">{categoryName}</td>
+                      <td className="px-3 py-2">{subCategoryName}</td>
+                      <td className="px-3 py-2">{supplierName}</td>
+                      <td className="px-3 py-2 text-right">₹{price.toLocaleString("en-IN")}</td>
+                      <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-xs ${stock <= 0 ? "bg-red-100 text-red-700" : stock < 10 ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700"}`}>{stock}</span></td>
+                      <td className="px-3 py-2 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => openEdit(p)} className="text-amber-600 hover:text-amber-800 text-sm">Edit</button>
+                          <button onClick={() => handleDelete(p)} className="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       )}
 
-      <ProductForm
-        open={openForm}
-        onClose={() => setOpenForm(false)}
-        onSave={handleSave}
-        initialData={editing}
-        categories={categories}
-        subcategories={subcategories}
-      />
+      {/* MODAL FORM */}
+      {showForm && (
+        <ProductForm
+          open={showForm}
+          onClose={() => {
+            setShowForm(false);
+            setEditingProduct(null);
+          }}
+          onSave={handleSave}
+          initialData={editingProduct}
+          categories={categories}
+          subcategories={subcategories}
+          suppliers={suppliers}
+        />
+      )}
+
+      {saving && <div className="fixed bottom-4 right-4 bg-black/80 text-white px-3 py-2 rounded text-sm">Saving...</div>}
     </div>
   );
 };

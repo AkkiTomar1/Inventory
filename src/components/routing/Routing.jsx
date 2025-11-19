@@ -1,3 +1,4 @@
+// src/components/routing/Routing.jsx
 import React from "react";
 import {
   createBrowserRouter,
@@ -16,9 +17,13 @@ import Layout from "./Layout";
 import Forgot from "../login/Forgot";
 import SubCategories from "../subcategories/SubCategories";
 import Purchase from "../parchase/Purchase";
+
 import { RequireAuth, RedirectIfAuth } from "./RequireAuth";
 
 const router = createBrowserRouter([
+  // redirect root → login
+  { path: "/", element: <Navigate to="/login" replace /> },
+
   {
     path: "/login",
     element: (
@@ -45,7 +50,7 @@ const router = createBrowserRouter([
   },
 
   {
-    path: "/",
+    path: "/app",
     element: (
       <RequireAuth>
         <Layout />
@@ -56,7 +61,10 @@ const router = createBrowserRouter([
       { path: "dashboard", element: <Dashboard /> },
       { path: "purchase", element: <Purchase /> },
       { path: "categories", element: <Categories /> },
-      { path: "subcategories", element: <SubCategories /> },
+      {
+        path: "subcategories",
+        element: <SubCategories />,
+      },
       { path: "products", element: <Products /> },
       { path: "suppliers", element: <Suppliers /> },
       { path: "profile", element: <Profile /> },

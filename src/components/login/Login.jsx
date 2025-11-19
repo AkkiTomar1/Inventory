@@ -16,7 +16,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post("/api/admin/login", {
+      const res = await axios.post("/admin/login", {
         email: form.email,
         password: form.password,
       });
@@ -76,6 +76,7 @@ const Login = () => {
             <input
               type={show ? "text" : "password"}
               placeholder="Password"
+              autoComplete="password"
               className="w-full pl-10 pr-10 py-2.5 bg-amber-50/40 rounded-xl border border-amber-200 focus:ring-2 focus:ring-amber-400 outline-none text-gray-700"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}

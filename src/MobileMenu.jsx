@@ -1,4 +1,3 @@
-// MobileMenu.jsx
 import React, { useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -12,13 +11,13 @@ import {
 } from "react-icons/fa";
 
 const MENU = [
-  { name: "Dashboard", icon: <FaTachometerAlt />, path: "/dashboard" },
-  { name: "Purchase", icon: <FaShoppingCart />, path: "/purchase" },
-  { name: "Categories", icon: <FaBoxes />, path: "/categories" },
-  { name: "Sub Categories", icon: <FaLayerGroup />, path: "/subcategories" },
-  { name: "Products", icon: <FaBoxOpen />, path: "/products" },
-  { name: "Suppliers", icon: <FaTruck />, path: "/suppliers" },
-  { name: "Profile", icon: <FaUserCircle />, path: "/profile" },
+  { name: "Dashboard", icon: <FaTachometerAlt />, path: "/app/dashboard" },
+  { name: "Purchase", icon: <FaShoppingCart />, path: "/app/purchase" },
+  { name: "Categories", icon: <FaBoxes />, path: "/app/categories" },
+  { name: "Sub Categories", icon: <FaLayerGroup />, path: "/app/subcategories" },
+  { name: "Products", icon: <FaBoxOpen />, path: "/app/products" },
+  { name: "Suppliers", icon: <FaTruck />, path: "/app/suppliers" },
+  { name: "Profile", icon: <FaUserCircle />, path: "/app/profile" },
 ];
 
 const MobileMenu = ({ open, onClose, anchorRef }) => {
@@ -26,10 +25,8 @@ const MobileMenu = ({ open, onClose, anchorRef }) => {
   const location = useLocation();
   const panelRef = useRef(null);
 
-  // detect mobile
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
-  // close on escape or outside click
   useEffect(() => {
     if (!open) return;
 
@@ -58,13 +55,10 @@ const MobileMenu = ({ open, onClose, anchorRef }) => {
     onClose();
   };
 
-  // MOBILE: bottom sheet style
   if (isMobile) {
     return (
       <>
-        {/* backdrop */}
         <div className="fixed inset-0 z-40 bg-black/40" />
-
         <div
           ref={panelRef}
           className="fixed left-0 right-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl border-t border-gray-100 p-4"
@@ -73,7 +67,9 @@ const MobileMenu = ({ open, onClose, anchorRef }) => {
         >
           <div className="flex items-center justify-between mb-3">
             <div className="text-lg font-semibold">Menu</div>
-            <button onClick={onClose} className="px-3 py-1 rounded-md border">Close</button>
+            <button onClick={onClose} className="px-3 py-1 rounded-md border">
+              Close
+            </button>
           </div>
 
           <div className="grid grid-cols-4 gap-2">
@@ -98,13 +94,9 @@ const MobileMenu = ({ open, onClose, anchorRef }) => {
     );
   }
 
-  // DESKTOP: small anchored popover under the menu button (no left margin issue)
-  // We'll center it horizontally near the button but keep it compact.
   return (
     <>
-      {/* subtle backdrop to catch outside clicks */}
       <div className="fixed inset-0 z-40 bg-transparent" />
-
       <div
         ref={panelRef}
         className="absolute z-50 mt-2 right-4 transform translate-y-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100"

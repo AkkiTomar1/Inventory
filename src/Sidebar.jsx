@@ -1,4 +1,3 @@
-// Sidebar.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -29,32 +28,29 @@ const Sidebar = () => {
   };
 
   const menuItems = [
-    { name: "Dashboard", icon: <FaTachometerAlt size={18} />, path: "/dashboard" },
-    { name: "Purchase", icon: <FaShoppingCart size={18} />, path: "/purchase" },
-    { name: "Categories", icon: <FaBoxes size={18} />, path: "/categories" },
-    { name: "Sub Categories", icon: <FaLayerGroup size={18} />, path: "/subcategories" },
-    { name: "Products", icon: <FaBoxOpen size={18} />, path: "/products" },
-    { name: "Suppliers", icon: <FaTruck size={18} />, path: "/suppliers" },
-    { name: "Profile", icon: <FaUserCircle size={18} />, path: "/profile" },
+    { name: "Dashboard", icon: <FaTachometerAlt size={18} />, path: "/app/dashboard" },
+    { name: "Purchase", icon: <FaShoppingCart size={18} />, path: "/app/purchase" },
+    { name: "Categories", icon: <FaBoxes size={18} />, path: "/app/categories" },
+    { name: "Sub Categories", icon: <FaLayerGroup size={18} />, path: "/app/subcategories" },
+    { name: "Products", icon: <FaBoxOpen size={18} />, path: "/app/products" },
+    { name: "Suppliers", icon: <FaTruck size={18} />, path: "/app/suppliers" },
+    { name: "Profile", icon: <FaUserCircle size={18} />, path: "/app/profile" },
   ];
 
-  // Whenever expanded or mobileOpen changes, dispatch the correct width
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
-    const width = isMobile ? (mobileOpen ? 256 : 0) : (expanded ? 256 : 80);
-    // expanded flag for consumer: only meaningful on desktop (for mobile keep false)
+    const width = isMobile ? (mobileOpen ? 256 : 0) : expanded ? 256 : 80;
     const expandedFlag = isMobile ? false : expanded;
-    window.dispatchEvent(new CustomEvent("sidebarState", { detail: { expanded: expandedFlag, width } }));
+    window.dispatchEvent(
+      new CustomEvent("sidebarState", { detail: { expanded: expandedFlag, width } })
+    );
   }, [expanded, mobileOpen]);
 
-  // Listen for the global toggleSidebar event
   useEffect(() => {
     const handler = () => {
       if (window.innerWidth < 768) {
-        // mobile: toggle drawer
         setMobileOpen((v) => !v);
       } else {
-        // desktop: toggle collapse/expand
         setExpanded((prev) => !prev);
       }
     };
@@ -63,29 +59,31 @@ const Sidebar = () => {
   }, []);
 
   const expandSidebar = () => {
-    const next = true;
-    setExpanded(next);
-    // dispatch will be handled by effect above
+    setExpanded(true);
   };
 
   const onNavigate = (path) => {
     if (!path) return;
     navigate(path);
-    // if mobile, close and ensure width 0 is dispatched (effect will run because mobileOpen changes)
     if (window.innerWidth < 768) {
       setMobileOpen(false);
     }
   };
 
-  const containerBase = "fixed left-0 top-0 h-full z-40 transition-all duration-300 ease-in-out flex flex-col justify-between";
+  const containerBase =
+    "fixed left-0 top-0 h-full z-40 transition-all duration-300 ease-in-out flex flex-col justify-between";
   const desktopWidthClass = expanded ? "w-64" : "w-20";
   const mobileVisibility = mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0";
 
   return (
     <div className={`${containerBase} ${desktopWidthClass} ${mobileVisibility}`}>
-      <div className={`h-full bg-[#0f2027] flex flex-col justify-between py-4 px-2 ${expanded ? "bg-[#0f2027]" : "bg-gray-900"} shadow-2xl`}>
+      <div className="h-full bg-[#0f2027] flex flex-col font-[Poppins] justify-between py-4 px-2 shadow-2xl">
         <div>
-          <div className={`hidden md:flex items-center justify-center py-4 border-b border-white/10 mb-3 ${expanded ? "" : "hidden"}`}>
+          <div
+            className={`hidden md:flex items-center justify-center py-4 border-b border-white/10 mb-3 ${
+              expanded ? "" : "hidden"
+            }`}
+          >
             <h1 className="text-2xl font-bold text-gray-100 tracking-wide flex items-center">
               <FaChevronDown size={22} className="mr-3 text-white/80" />
               {expanded && <span>Inventory</span>}
@@ -101,12 +99,26 @@ const Sidebar = () => {
                   onClick={() => onNavigate(item.path)}
                   className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 w-full focus:outline-none 
                     ${expanded ? "justify-start" : "justify-center"}
-                    ${isActive ? "bg-linear-to-l from-amber-400 to-amber-500" : "hover:bg-white/10"}
+                    ${
+                      isActive
+                        ? "bg-linear-to-l from-amber-800 via-amber-900 to-amber-950"
+                        : "hover:bg-white/10"
+                    }
                     active:bg-white/30`}
                   title={expanded ? "" : item.name}
                 >
-                  <span className={`text-white ${isActive ? "opacity-100" : "opacity-90"}`}>{item.icon}</span>
-                  {expanded && <span className={`text-white font-medium ${isActive ? "opacity-100" : "opacity-95"}`}>{item.name}</span>}
+                  <span className={`text-white ${isActive ? "opacity-100" : "opacity-90"}`}>
+                    {item.icon}
+                  </span>
+                  {expanded && (
+                    <span
+                      className={`text-white font-medium ${
+                        isActive ? "opacity-100" : "opacity-95"
+                      }`}
+                    >
+                      {item.name}
+                    </span>
+                  )}
                 </button>
               );
             })}

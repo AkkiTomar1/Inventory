@@ -1,61 +1,75 @@
-// SubcategoriesForm.jsx
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
-const SubcategoriesForm = ({ open, onClose, onSave, initialData, categories }) => {
+const SubcategoriesForm = ({
+  open,
+  onClose,
+  onSave,
+  initialData,
+  categories,
+  selectedCategoryId,
+}) => {
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [productCount, setProductCount] = useState(0);
-  const [color, setColor] = useState("bg-amber-100 text-amber-700");
 
   useEffect(() => {
+    const defaultCategoryId =
+      selectedCategoryId ||
+      (categories[0]?.id ? String(categories[0].id) : "");
+
     if (initialData) {
-      setName(initialData.name);
-      setDescription(initialData.description);
-      setCategoryId(initialData.categoryId);
-      setProductCount(initialData.productCount);
-      setColor(initialData.color);
+      setName(initialData.name || "");
+      setCategoryId(
+        initialData.categoryId != null
+          ? String(initialData.categoryId)
+          : defaultCategoryId
+      );
     } else {
       setName("");
-      setDescription("");
-      setCategoryId(categories[0]?.id || "");
-      setProductCount(0);
-      setColor("bg-amber-100 text-amber-700");
+      setCategoryId(defaultCategoryId);
     }
-  }, [initialData, categories, open]);
+  }, [initialData, categories, selectedCategoryId, open]);
 
   if (!open) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!name.trim()) return alert("Enter subcategory name");
+    if (!name.trim()) {
+      alert("Subcategory name is required");
+      return;
+    }
+    if (!categoryId) {
+      alert("Please select a category");
+      return;
+    }
 
     onSave({
+      id: initialData?.id ?? null,
       name: name.trim(),
-      description: description.trim(),
-      categoryId,
-      productCount,
-      color,
+      categoryId: Number(categoryId),
     });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40" onClick={onClose}></div>
 
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
+      {/* Modal form */}
       <motion.form
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-xl p-6"
+        onSubmit={handleSubmit}
       >
-        <h2 className="text-xl font-bold mb-4">{initialData ? "Edit Subcategory" : "Add Subcategory"}</h2>
+        <h2 className="text-xl font-bold mb-4">
+          {initialData ? "Edit Subcategory" : "Add Subcategory"}
+        </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-          <div>
+          {/* Name */}
+          <div className="sm:col-span-2">
             <label className="text-sm text-gray-600">Name</label>
             <input
               className="w-full border p-2 rounded mt-1"
@@ -64,68 +78,37 @@ const SubcategoriesForm = ({ open, onClose, onSave, initialData, categories }) =
             />
           </div>
 
-          <div>
+          {/* Category */}
+          <div className="sm:col-span-2">
             <label className="text-sm text-gray-600">Category</label>
             <select
               className="w-full border p-2 rounded mt-1"
               value={categoryId}
-              onChange={(e) => setCategoryId(Number(e.target.value))}
+              onChange={(e) => setCategoryId(e.target.value)}
             >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="col-span-2">
-            <label className="text-sm text-gray-600">Description</label>
-            <textarea
-              rows={3}
-              className="w-full border p-2 rounded mt-1"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-600">Product Count</label>
-            <input
-              type="number"
-              className="w-full border p-2 rounded mt-1"
-              value={productCount}
-              onChange={(e) => setProductCount(Number(e.target.value))}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-600">Color</label>
-            <select
-              className="w-full border p-2 rounded mt-1"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            >
-              <option value="bg-amber-100 text-amber-700">Amber</option>
-              <option value="bg-emerald-100 text-emerald-700">Emerald</option>
-              <option value="bg-sky-100 text-sky-700">Sky</option>
-              <option value="bg-pink-100 text-pink-700">Pink</option>
+              {categories.length === 0 ? (
+                <option value="">No categories</option>
+              ) : (
+                categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
         </div>
 
-        {/* BUTTONS */}
         <div className="flex justify-end gap-3 mt-6">
           <button
-            onClick={onClose}
             type="button"
+            onClick={onClose}
             className="px-4 py-2 border rounded"
           >
             Cancel
           </button>
 
           <button
-            onClick={handleSubmit}
             type="submit"
             className="px-4 py-2 bg-amber-600 text-white rounded"
           >

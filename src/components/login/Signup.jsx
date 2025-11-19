@@ -25,7 +25,7 @@ const Signup = () => {
     const payload = { email: form.email.trim(), phoneNumber: form.mobile.trim(), name: form.name.trim(), password: form.password };
     try {
       setLoading(true);
-      const res = await axios.post("/api/admin/register", payload, { headers: { "Content-Type": "application/json" } });
+      const res = await axios.post("/admin/register", payload, { headers: { "Content-Type": "application/json" } });
       if (res.status === 200 || res.status === 201) {
         setSuccess("Account created successfully! Redirecting to login...");
         setTimeout(() => navigate("/login"), 1400);
