@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: {
       // pehle se tha: admin APIs
       "/admin": {
-        target: "http://localhost:9090/api",
+        target: "https://invoice-t3c6.onrender.com/api",
         changeOrigin: true,
         secure: false,
       },
