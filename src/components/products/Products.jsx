@@ -8,6 +8,10 @@ import {
   FaSearch,
   FaBoxes,
   FaChevronDown,
+  FaAngleLeft,
+  FaAngleRight,
+  FaAngleDoubleLeft,
+  FaAngleDoubleRight,
 } from "react-icons/fa";
 import ProductForm from "./ProductForm";
 import axiosInstance from "../../api/axiosInstance";
@@ -34,6 +38,11 @@ const Products = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
 
+  // pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  // pageSize defaults: grid -> 8, table -> 10
+  const [pageSize, setPageSize] = useState(() => (viewMode === "grid" ? 8 : 10));
+
   // dropdown open state
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -51,27 +60,24 @@ const Products = () => {
       const res = await axiosInstance.get("/admin/products");
       const baseList = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
 
-      const listWithSupplier = await Promise.all(
-        baseList.map(async (p) => {
-          const id = p.productId ?? p.id;
-          if (!id) return p;
-          if (p.supplierName) return p;
+      // normalize product shape and preserve supplierId & supplierName
+      const list = baseList.map((p) => ({
+        ...p,
+        productId: p.productId ?? p.id ?? null,
+        productName: p.productName ?? p.name ?? "",
+        supplierId: p.supplierId ?? (p.supplier && p.supplier.id) ?? null,
+        supplierName:
+          p.supplierName ??
+          (p.supplier && p.supplier.name) ??
+          (typeof p.supplier === "string" ? p.supplier : "") ??
+          "",
+        price: p.price ?? 0,
+        stock: p.stock ?? 0,
+        categoryId: p.categoryId ?? null,
+        subCategoryId: p.subCategoryId ?? p.subCategory ?? null,
+      }));
 
-          try {
-            const detailRes = await axiosInstance.get(`/admin/products/${encodeURIComponent(id)}`);
-            const detail = Array.isArray(detailRes.data) ? detailRes.data[0] : detailRes.data?.data || detailRes.data || {};
-            return {
-              ...p,
-              supplierName: detail.supplierName != null ? detail.supplierName : p.supplierName ?? null,
-            };
-          } catch (err) {
-            console.error("fetch single product error", err);
-            return p;
-          }
-        })
-      );
-
-      setProducts(listWithSupplier);
+      setProducts(list);
     } catch (err) {
       console.error("fetchProducts error", err);
       if (err?.response?.status === 401) {
@@ -128,10 +134,12 @@ const Products = () => {
   };
 
   useEffect(() => {
+    // load everything in parallel
     fetchProducts();
     fetchCategories();
     fetchSubcategories();
     fetchSuppliers();
+
     // click outside to close dropdown
     const onDocClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -143,6 +151,16 @@ const Products = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reset page when filters/search/view change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedSubcategoryId, stockFilter, viewMode, sortAsc, pageSize]);
+
+  // if viewMode changes, set sensible default pageSize
+  useEffect(() => {
+    setPageSize(viewMode === "grid" ? 8 : 10);
+  }, [viewMode]);
+
   // ---------- HELPERS ----------
   const productToTitle = (p) => p.productName ?? p.name ?? "Unnamed product";
 
@@ -151,6 +169,22 @@ const Products = () => {
     if (stock <= 0) return { text: "Out", className: "bg-red-100 text-red-700" };
     if (stock < 10) return { text: "Low", className: "bg-orange-100 text-orange-700" };
     return { text: "In Stock", className: "bg-green-100 text-green-700" };
+  };
+
+  // get supplier name: prefer product.supplierName, then nested supplier, then supplier lookup by id
+  const getSupplierName = (p) => {
+    if (p.supplierName && String(p.supplierName).trim() !== "") return p.supplierName;
+    if (p.supplier && typeof p.supplier === "object") {
+      if (p.supplier.name) return p.supplier.name;
+      if (p.supplier.supplierName) return p.supplier.supplierName;
+    }
+    const sid = p.supplierId ?? (p.supplier && p.supplier.id) ?? null;
+    if (sid != null && suppliers && suppliers.length) {
+      const found = suppliers.find((s) => String(s.id) === String(sid));
+      if (found) return found.name;
+    }
+    if (p.supplier && typeof p.supplier === "string" && p.supplier.trim() !== "") return p.supplier;
+    return "-";
   };
 
   const getCategoryName = (p) => {
@@ -168,8 +202,6 @@ const Products = () => {
     const found = subcategories.find((s) => String(s.id) === String(sid));
     return found?.name || "-";
   };
-
-  const getSupplierName = (p) => p.supplierName || "-";
 
   const currentSubcategoryName =
     selectedSubcategoryId &&
@@ -207,10 +239,82 @@ const Products = () => {
       });
     }
 
-    return list.sort((a, b) =>
+    const sorted = list.sort((a, b) =>
       sortAsc ? (productToTitle(a) || "").localeCompare(productToTitle(b) || "") : (productToTitle(b) || "").localeCompare(productToTitle(a) || "")
     );
-  }, [products, search, sortAsc, categories, subcategories, selectedSubcategoryId, stockFilter]);
+
+    return sorted;
+  }, [products, search, sortAsc, categories, subcategories, selectedSubcategoryId, stockFilter, suppliers]);
+
+  // ---------- PAGINATION ----------
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPages]);
+
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return filtered.slice(start, end);
+  }, [filtered, currentPage, pageSize]);
+
+  const showFrom = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const showTo = Math.min(totalItems, currentPage * pageSize);
+
+  const goToPage = (n) => {
+    const page = Math.max(1, Math.min(totalPages, n));
+    setCurrentPage(page);
+    // nice scroll so pagination feels snappy
+    const containerTop = document.querySelector(".products-top-anchor")?.getBoundingClientRect()?.top ?? 0;
+    window.scrollTo({ top: window.scrollY + containerTop - 20, behavior: "smooth" });
+  };
+
+  // create tasteful pill-style page button
+  const PageButton = ({ page, active }) => (
+    <button
+      onClick={() => goToPage(page)}
+      aria-current={active ? "page" : undefined}
+      aria-label={`Page ${page}`}
+      className={`inline-flex items-center justify-center min-w-[44px] h-10 px-4 rounded-full text-sm font-medium transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+        active
+          ? "bg-gradient-to-r from-amber-600 to-amber-400 text-white shadow-lg"
+          : "bg-white border border-gray-200 text-gray-700 hover:shadow-sm"
+      }`}
+    >
+      {page}
+    </button>
+  );
+
+  // smart rendering for many pages (first, ellipsis, neighbors, last)
+  const renderPageButtons = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => <PageButton key={p} page={p} active={p === currentPage} />);
+    }
+
+    const buttons = [];
+    buttons.push(<PageButton key={1} page={1} active={1 === currentPage} />);
+
+    if (currentPage > 4) {
+      buttons.push(<span key="left-ellipsis" className="px-2 text-gray-500">…</span>);
+    }
+
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    for (let p = start; p <= end; p++) {
+      buttons.push(<PageButton key={p} page={p} active={p === currentPage} />);
+    }
+
+    if (currentPage < totalPages - 3) {
+      buttons.push(<span key="right-ellipsis" className="px-2 text-gray-500">…</span>);
+    }
+
+    buttons.push(<PageButton key={totalPages} page={totalPages} active={totalPages === currentPage} />);
+
+    return buttons;
+  };
 
   // ---------- HANDLERS ----------
   const openCreate = () => {
@@ -226,7 +330,8 @@ const Products = () => {
       stock: p.stock ?? 0,
       categoryId: p.categoryId ?? null,
       subCategoryId: p.subCategoryId ?? null,
-      supplierName: p.supplierName ?? "",
+      supplierId: p.supplierId ?? (p.supplier && p.supplier.id) ?? null,
+      supplierName: p.supplierName ?? (p.supplier && p.supplier.name) ?? "",
     };
     setEditingProduct(form);
     setShowForm(true);
@@ -239,6 +344,11 @@ const Products = () => {
       const isEdit = !!data.productId;
       const category = categories.find((c) => data.categoryId != null && String(c.categoryId) === String(data.categoryId));
       const subcat = subcategories.find((s) => data.subCategoryId != null && String(s.id) === String(data.subCategoryId));
+
+      const resolvedSupplierName =
+        data.supplierName ||
+        (data.supplierId != null ? (suppliers.find((s) => String(s.id) === String(data.supplierId))?.name || "") : "");
+
       const payload = {
         productId: data.productId ?? 0,
         productName: data.productName,
@@ -248,13 +358,16 @@ const Products = () => {
         categoryName: category?.categoryName || "",
         subCategoryId: data.subCategoryId != null ? Number(data.subCategoryId) : 0,
         subCategoryName: subcat?.name || "",
-        supplierName: data.supplierName || "",
+        supplierId: data.supplierId != null ? Number(data.supplierId) : null,
+        supplierName: resolvedSupplierName || "",
       };
+
       if (isEdit) {
         await axiosInstance.put(`/admin/products/${encodeURIComponent(data.productId)}`, payload);
       } else {
         await axiosInstance.post("/admin/products", payload);
       }
+
       await fetchProducts();
       setShowForm(false);
       setEditingProduct(null);
@@ -296,6 +409,9 @@ const Products = () => {
 
   return (
     <div>
+      {/* HEADER anchor used by pagination scroll */}
+      <div className="products-top-anchor" />
+
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center bg-[linear-gradient(135deg,#fb923c,#60a5fa)] text-amber-200 md:justify-between rounded-t-2xl p-3">
         <div className="flex items-center gap-4">
@@ -329,7 +445,7 @@ const Products = () => {
       </div>
 
       {/* FILTER BAR */}
-      <div className="bg-[linear-gradient(135deg,#fb923c,#60a5fa)] text-black rounded-b-2xl p-4 shadow-sm mb-12">
+      <div className="bg-[linear-gradient(135deg,#fb923c,#60a5fa)] text-black rounded-b-2xl p-4 shadow-sm mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* Search + Sort */}
           <div className="flex items-center gap-3 w-full sm:w-[480px]">
@@ -387,20 +503,48 @@ const Products = () => {
         </div>
       </div>
 
+      {/* Showing range + controls */}
+      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="text-sm text-gray-600">
+          Showing <span className="font-semibold">{showFrom}</span> to <span className="font-semibold">{showTo}</span> of <span className="font-semibold">{totalItems}</span> products
+        </div>
+
+        <div className="flex items-center gap-3">
+  <label className="text-sm text-gray-600">Per page</label>
+  <select
+    className="px-3 py-2 rounded border border-gray-200 bg-white text-sm"
+    value={pageSize}
+    onChange={(e) => {
+      const val = Number(e.target.value) || (viewMode === "grid" ? 8 : 10);
+      setPageSize(val);
+      setCurrentPage(1);
+    }}
+    aria-label="Items per page"
+  >
+    {/* options: 5 / 10 / 15 / 20 */}
+    <option value={5}>5</option>
+    <option value={10}>10</option>
+    <option value={15}>15</option>
+    <option value={20}>20</option>
+  </select>
+</div>
+
+      </div>
+
       {/* CONTENT */}
       {loading ? (
         <div className="py-10 flex justify-center">
           <FaSpinner className="animate-spin text-amber-500 text-2xl" />
         </div>
       ) : viewMode === "grid" ? (
-        filtered.length === 0 ? (
+        paginated.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl shadow">
             <div className="text-2xl text-gray-600 mb-3">{error || "No products found"}</div>
             {!error && <p className="text-gray-500">Try adjusting your search or switch subcategory filter.</p>}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filtered.map((p, idx) => {
+            {paginated.map((p, idx) => {
               const id = p.productId ?? p.id ?? idx;
               const title = productToTitle(p);
               const price = Number(p.price ?? 0);
@@ -441,25 +585,25 @@ const Products = () => {
       ) : (
         <div className="bg-white rounded-2xl shadow overflow-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-linear-to-l from-amber-900 via-amber-950 to-amber-900">
+            <thead className=" bg-linear-to-l from-amber-900 via-amber-950 to-amber-900">
               <tr>
-                <th className="text-left px-3 py-2 text-xs text-gray-100">Id</th>
-                <th className="text-left px-3 py-2 text-xs text-gray-100">Product</th>
-                <th className="text-left px-3 py-2 text-xs text-gray-100">Category</th>
-                <th className="text-left px-3 py-2 text-xs text-gray-100">Subcategory</th>
-                <th className="text-left px-3 py-2 text-xs text-gray-100">Supplier</th>
-                <th className="text-right px-3 py-2 text-xs text-gray-100">Price</th>
-                <th className="text-left px-3 py-2 text-xs text-gray-100">Stock</th>
-                <th className="text-center px-3 py-2 text-xs text-gray-100">Actions</th>
+                <th className="text-left px-3 py-3 text-md text-gray-100">Id</th>
+                <th className="text-left px-3 py-3 text-md text-gray-100">Product</th>
+                <th className="text-left px-3 py-3 text-d text-gray-100">Category</th>
+                <th className="text-left px-3 py-3 text-md text-gray-100">Subcategory</th>
+                <th className="text-left px-3 py-3 text-md text-gray-100">Supplier</th>
+                <th className="text-right px-3 py-3 text-md text-gray-100">Price</th>
+                <th className="text-left px-3 py-3 text-md text-gray-100">Stock</th>
+                <th className="text-center px-3 py-3 text-md text-gray-100">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginated.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-3 py-6 text-center text-sm text-gray-500">{error || "No products found"}</td>
                 </tr>
               ) : (
-                filtered.map((p, i) => {
+                paginated.map((p, i) => {
                   const title = productToTitle(p);
                   const price = Number(p.price ?? 0);
                   const stock = Number(p.stock ?? 0);
@@ -468,8 +612,8 @@ const Products = () => {
                   const supplierName = getSupplierName(p);
 
                   return (
-                    <tr key={p.productId ?? p.id ?? i} className={i % 2 ? "bg-gray-50" : "bg-white"}>
-                      <td className="px-3 py-2">{i + 1}</td>
+                    <tr key={p.productId ?? p.id ?? i} className={i % 2 ? "bg-gray-100" : "bg-white"}>
+                      <td className="px-3 py-2">{(currentPage - 1) * pageSize + (i + 1)}</td>
                       <td className="px-3 py-2 font-medium">{title}</td>
                       <td className="px-3 py-2">{categoryName}</td>
                       <td className="px-3 py-2">{subCategoryName}</td>
@@ -478,8 +622,8 @@ const Products = () => {
                       <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-xs ${stock <= 0 ? "bg-red-100 text-red-700" : stock < 10 ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700"}`}>{stock}</span></td>
                       <td className="px-3 py-2 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => openEdit(p)} className="text-amber-600 hover:text-amber-800 text-sm">Edit</button>
-                          <button onClick={() => handleDelete(p)} className="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                          <button onClick={() => openEdit(p)} className="text-amber-800 bg-amber-200 rounded-xl pl-2 p-1 pr-2 hover:text-amber-950 text-sm">Edit</button>
+                          <button onClick={() => handleDelete(p)} className="text-red-800 bg-red-200 rounded-xl pl-2 pr-2 p-1 hover:text-red-950 text-sm">Delete</button>
                         </div>
                       </td>
                     </tr>
@@ -490,6 +634,68 @@ const Products = () => {
           </table>
         </div>
       )}
+
+      <div className="mt-6 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="text-sm text-gray-600">
+            Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
+          </div>
+
+          <div className="flex items-center gap-2 justify-center md:justify-end flex-wrap">
+            <button
+              onClick={() => goToPage(1)}
+              disabled={currentPage === 1}
+              aria-label="First page"
+              className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition ${
+                currentPage === 1 ? "bg-gray-100 text-gray-300 cursor-not-allowed" : "bg-white border border-gray-200 hover:shadow"
+              }`}
+              title="First"
+            >
+              <FaAngleDoubleLeft />
+            </button>
+
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="Previous page"
+              className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition ${
+                currentPage === 1 ? "bg-gray-100 text-gray-300 cursor-not-allowed" : "bg-white border border-gray-200 hover:shadow"
+              }`}
+              title="Prev"
+            >
+              <FaAngleLeft />
+            </button>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {renderPageButtons()}
+            </div>
+
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              aria-label="Next page"
+              className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition ${
+                currentPage === totalPages ? "bg-gray-100 text-gray-300 cursor-not-allowed" : "bg-white border border-gray-200 hover:shadow"
+              }`}
+              title="Next"
+            >
+              <FaAngleRight />
+            </button>
+
+            <button
+              onClick={() => goToPage(totalPages)}
+              disabled={currentPage === totalPages}
+              aria-label="Last page"
+              className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition ${
+                currentPage === totalPages ? "bg-gray-100 text-gray-300 cursor-not-allowed" : "bg-white border border-gray-200 hover:shadow"
+              }`}
+              title="Last"
+            >
+              <FaAngleDoubleRight />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* MODAL FORM */}
       {showForm && (

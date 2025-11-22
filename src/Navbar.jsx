@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaUserCircle, FaChevronDown, FaBars } from "react-icons/fa";
-import useLogout from "./hooks/useLogout";
+import axiosInstance from "./api/axiosInstance";
 import MobileMenu from "./MobileMenu";
 
 const MOBILE_BREAKPOINT = 768;
@@ -9,7 +9,6 @@ const MOBILE_BREAKPOINT = 768;
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const logout = useLogout();
 
   const [profileHovered, setProfileHovered] = useState(false);
   const [contentPadding, setContentPadding] = useState(
@@ -24,6 +23,7 @@ const Navbar = () => {
 
   const menuBtnRef = useRef(null);
 
+  // Handle sidebar width
   useEffect(() => {
     const handler = (e) => {
       const width = e?.detail?.width ?? 256;
@@ -34,6 +34,7 @@ const Navbar = () => {
     return () => window.removeEventListener("sidebarState", handler);
   }, []);
 
+  // Handle window resize
   useEffect(() => {
     const onResize = () => {
       const mobile = window.innerWidth < MOBILE_BREAKPOINT;
@@ -45,10 +46,12 @@ const Navbar = () => {
         setContentPadding(0);
       }
     };
+
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // Load username from localStorage
   useEffect(() => {
     try {
       const raw = localStorage.getItem("user");
@@ -63,6 +66,7 @@ const Navbar = () => {
     }
   }, [location]);
 
+  // Toggle sidebar / mobile menu
   const handleMenuButton = () => {
     if (window.innerWidth < MOBILE_BREAKPOINT) {
       setMobileMenuOpen((v) => !v);
@@ -72,9 +76,23 @@ const Navbar = () => {
     }
   };
 
+  // LOGOUT FUNCTION (DIRECT API CALL)
   const handleLogout = async () => {
     setLoadingLogout(true);
-    await logout({ callApi: true });
+
+    try {
+      await axiosInstance.post("/admin/logout", {}); // <-- direct API call
+    } catch (err) {
+      console.error("Logout API error:", err?.response || err);
+    }
+
+    // Always clear session
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("tokenType");
+    localStorage.removeItem("auth");
+    localStorage.removeItem("user");
+
+    navigate("/login", { replace: true });
     setLoadingLogout(false);
   };
 
@@ -107,9 +125,7 @@ const Navbar = () => {
           <button
             ref={menuBtnRef}
             onClick={handleMenuButton}
-            className="p-2 rounded-md hover:bg-gray-900 cursor-pointer ml-2 transition focus:outline-none focus:ring-2 focus:ring-amber-100"
-            aria-label="Toggle menu"
-            title="Menu"
+            className="p-2 rounded-md hover:bg-gray-900 cursor-pointer ml-2 transition-all focus:ring-1 focus:ring-amber-100"
           >
             <FaBars size={18} className="text-gray-100" />
           </button>
@@ -119,21 +135,21 @@ const Navbar = () => {
           </h1>
         </div>
 
+        {/* Profile Dropdown */}
         <div
           className="flex items-center gap-3 relative"
           onMouseEnter={() => setProfileHovered(true)}
           onMouseLeave={() => setProfileHovered(false)}
         >
-          <button
-            className="flex items-center gap-2 focus:outline-none"
-            aria-haspopup="menu"
-            aria-expanded={profileHovered}
-          >
+          <button className="flex items-center gap-2">
             <FaUserCircle size={30} className="text-gray-50 hover:text-amber-600 transition" />
-            <span className="font-medium text-gray-50 hidden sm:inline">{userName}</span>
+            <span className="font-medium text-gray-50 hidden sm:inline">
+              Admin
+            </span>
             <FaChevronDown className="text-gray-50" />
           </button>
 
+          {/* Dropdown Menu */}
           <div
             className={`absolute right-0 top-12 w-44 rounded-lg shadow-lg transition-all duration-150 origin-top-right ${
               profileHovered ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"
@@ -146,6 +162,7 @@ const Navbar = () => {
               >
                 Profile
               </button>
+
               <button
                 onClick={handleLogout}
                 disabled={loadingLogout}

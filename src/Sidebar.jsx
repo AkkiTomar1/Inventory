@@ -1,3 +1,4 @@
+// src/components/Sidebar.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -11,7 +12,7 @@ import {
   FaChevronDown,
   FaShoppingCart,
 } from "react-icons/fa";
-import useLogout from "./hooks/useLogout";
+import axiosInstance from "./api/axiosInstance"; // <- use axiosInstance
 
 const Sidebar = () => {
   const [expanded, setExpanded] = useState(true);
@@ -19,12 +20,28 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loadingLogout, setLoadingLogout] = useState(false);
-  const logout = useLogout();
 
   const handleLogout = async () => {
     setLoadingLogout(true);
-    await logout({ callApi: true });
-    setLoadingLogout(false);
+    try {
+      // call logout endpoint (will use VITE_API_BASE_URL from axiosInstance)
+      await axiosInstance.post("/admin/logout", {});
+    } catch (err) {
+      // log but continue to clear session anyway
+      console.error("Logout API error:", err?.response || err);
+    } finally {
+      // always clear session and redirect to login
+      try {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("tokenType");
+        localStorage.removeItem("auth");
+        localStorage.removeItem("user");
+      } catch (e) {
+        // ignore
+      }
+      setLoadingLogout(false);
+      navigate("/login", { replace: true });
+    }
   };
 
   const menuItems = [
@@ -112,9 +129,7 @@ const Sidebar = () => {
                   </span>
                   {expanded && (
                     <span
-                      className={`text-white font-medium ${
-                        isActive ? "opacity-100" : "opacity-95"
-                      }`}
+                      className={`text-white font-medium ${isActive ? "opacity-100" : "opacity-95"}`}
                     >
                       {item.name}
                     </span>

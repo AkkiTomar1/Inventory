@@ -1,3 +1,4 @@
+// src/components/purchases/ProductForm.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -10,67 +11,57 @@ import {
   FaSave,
 } from "react-icons/fa";
 
+/**
+ * ProductForm now uses supplierId (option value = supplier id)
+ * and returns supplierId + supplierName in onSave payload.
+ */
+
 const ProductForm = ({
   open,
   onClose,
   onSave,
   initialData,
-  categories,
-  subcategories,
-  suppliers,
+  categories = [],
+  subcategories = [],
+  suppliers = [],
 }) => {
   const [productName, setProductName] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [subCategoryId, setSubCategoryId] = useState("");
-  const [supplierName, setSupplierName] = useState("");
-
+  const [supplierId, setSupplierId] = useState(""); // NEW: store supplier id
   const [errors, setErrors] = useState({});
   const firstInputRef = useRef(null);
 
   // Filter subcategories based on selected category
   const filteredSubcategories = useMemo(() => {
     if (!categoryId) return [];
-    return subcategories.filter(
-      (s) => String(s.categoryId) === String(categoryId)
-    );
+    return subcategories.filter((s) => String(s.categoryId) === String(categoryId));
   }, [categoryId, subcategories]);
 
   useEffect(() => {
     if (initialData) {
       setProductName(initialData.productName ?? "");
-      setPrice(
-        initialData.price != null ? String(initialData.price) : ""
-      );
-      setStock(
-        initialData.stock != null ? String(initialData.stock) : ""
-      );
-      setCategoryId(
-        initialData.categoryId != null
-          ? String(initialData.categoryId)
-          : ""
-      );
-      setSubCategoryId(
-        initialData.subCategoryId != null
-          ? String(initialData.subCategoryId)
-          : ""
-      );
-      setSupplierName(initialData.supplierName ?? "");
+      setPrice(initialData.price != null ? String(initialData.price) : "");
+      setStock(initialData.stock != null ? String(initialData.stock) : "");
+      setCategoryId(initialData.categoryId != null ? String(initialData.categoryId) : "");
+      setSubCategoryId(initialData.subCategoryId != null ? String(initialData.subCategoryId) : "");
+      // initialData may include supplierId and supplierName
+      setSupplierId(initialData.supplierId != null ? String(initialData.supplierId) : (initialData.supplierId === 0 ? "0" : ""));
     } else {
       setProductName("");
       setPrice("");
       setStock("");
-      // default category if exists
       setCategoryId(categories[0]?.categoryId ? String(categories[0].categoryId) : "");
       setSubCategoryId("");
-      setSupplierName("");
+      setSupplierId("");
     }
     setErrors({});
-
     if (open) {
       setTimeout(() => firstInputRef.current?.focus?.(), 80);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData, open, categories]);
 
   useEffect(() => {
@@ -85,14 +76,11 @@ const ProductForm = ({
 
   const validate = () => {
     const e = {};
-    if (!productName.trim())
-      e.productName = "Product name is required";
-    if (!price.trim()) e.price = "Price is required";
-    if (price && Number(price) < 0)
-      e.price = "Price cannot be negative";
-    if (!stock.trim()) e.stock = "Stock is required";
-    if (stock && Number(stock) < 0)
-      e.stock = "Stock cannot be negative";
+    if (!productName.trim()) e.productName = "Product name is required";
+    if (!price.toString().trim()) e.price = "Price is required";
+    if (price && Number(price) < 0) e.price = "Price cannot be negative";
+    if (!stock.toString().trim()) e.stock = "Stock is required";
+    if (stock && Number(stock) < 0) e.stock = "Stock cannot be negative";
     if (!categoryId) e.categoryId = "Category is required";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -102,6 +90,11 @@ const ProductForm = ({
     e.preventDefault();
     if (!validate()) return;
 
+    // find supplierName from suppliers list if supplierId selected
+    const sid = supplierId ? Number(supplierId) : null;
+    const supplierObj = suppliers.find((s) => Number(s.id) === Number(sid));
+    const supplierName = supplierObj ? supplierObj.name : "";
+
     onSave({
       productId: initialData?.productId ?? null,
       productName: productName.trim(),
@@ -109,17 +102,15 @@ const ProductForm = ({
       stock: Number(stock),
       categoryId: categoryId ? Number(categoryId) : null,
       subCategoryId: subCategoryId ? Number(subCategoryId) : null,
-      supplierName: supplierName.trim(),
+      supplierId: sid,
+      supplierName: supplierName || "", // keep it for display & server convenience
     });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       <motion.form
         initial={{ scale: 0.95, opacity: 0 }}
@@ -134,127 +125,41 @@ const ProductForm = ({
               <FaTags className="text-amber-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">
-                {initialData ? "Edit Product" : "Add Product"}
-              </h2>
+              <h2 className="text-lg font-semibold">{initialData ? "Edit Product" : "Add Product"}</h2>
               <p className="text-sm text-gray-500">
-                {initialData
-                  ? "Update product details"
-                  : "Create a new product entry"}
+                {initialData ? "Update product details" : "Create a new product entry"}
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-md text-gray-500 hover:bg-gray-100"
-          >
+          <button type="button" onClick={onClose} className="p-2 rounded-md text-gray-500 hover:bg-gray-100">
             <FaTimes />
           </button>
         </div>
 
         {/* Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Product Name */}
-          <label className="block">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-              <FaTags /> <span>Product Name</span>
-            </div>
-            <input
-              ref={firstInputRef}
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              className={`w-full p-2 border rounded ${
-                errors.productName
-                  ? "border-red-500"
-                  : "border-gray-200"
-              }`}
-              placeholder="e.g. iPhone 15"
-            />
-            {errors.productName && (
-              <p className="text-xs text-red-600 mt-1">
-                {errors.productName}
-              </p>
-            )}
-          </label>
-
-          {/* Price */}
-          <label className="block">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-              <FaRupeeSign /> <span>Price</span>
-            </div>
-            <input
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className={`w-full p-2 border rounded ${
-                errors.price ? "border-red-500" : "border-gray-200"
-              }`}
-              placeholder="e.g. 99999"
-              min={0}
-            />
-            {errors.price && (
-              <p className="text-xs text-red-600 mt-1">
-                {errors.price}
-              </p>
-            )}
-          </label>
-
-          {/* Stock */}
-          <label className="block">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-              <FaBoxes /> <span>Stock</span>
-            </div>
-            <input
-              type="number"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              className={`w-full p-2 border rounded ${
-                errors.stock ? "border-red-500" : "border-gray-200"
-              }`}
-              placeholder="e.g. 50"
-              min={0}
-            />
-            {errors.stock && (
-              <p className="text-xs text-red-600 mt-1">
-                {errors.stock}
-              </p>
-            )}
-          </label>
-
-          {/* Category */}
+           {/* Category */}
           <label className="block">
             <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
               <FaLayerGroup /> <span>Category</span>
             </div>
             <select
-              className={`w-full p-2 border rounded ${
-                errors.categoryId
-                  ? "border-red-500"
-                  : "border-gray-200"
-              }`}
+              className={`w-full p-2 border rounded ${errors.categoryId ? "border-red-500" : "border-gray-200"}`}
               value={categoryId}
               onChange={(e) => {
                 setCategoryId(e.target.value);
-                setSubCategoryId(""); // reset subcategory when category changes
+                setSubCategoryId("");
               }}
             >
               <option value="">Select category</option>
               {categories.map((c) => (
-                <option
-                  key={c.categoryId}
-                  value={c.categoryId}
-                >
+                <option key={c.categoryId} value={c.categoryId}>
                   {c.categoryName}
                 </option>
               ))}
             </select>
-            {errors.categoryId && (
-              <p className="text-xs text-red-600 mt-1">
-                {errors.categoryId}
-              </p>
-            )}
+            {errors.categoryId && <p className="text-xs text-red-600 mt-1">{errors.categoryId}</p>}
           </label>
 
           {/* Subcategory */}
@@ -268,11 +173,7 @@ const ProductForm = ({
               onChange={(e) => setSubCategoryId(e.target.value)}
               disabled={!categoryId}
             >
-              <option value="">
-                {categoryId
-                  ? "Select subcategory"
-                  : "Select category first"}
-              </option>
+              <option value="">{categoryId ? "Select subcategory" : "Select category first"}</option>
               {filteredSubcategories.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -280,20 +181,68 @@ const ProductForm = ({
               ))}
             </select>
           </label>
+          {/* Product Name */}
+          <label className="block">
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+              <FaTags /> <span>Product Name</span>
+            </div>
+            <input
+              ref={firstInputRef}
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              className={`w-full p-2 border rounded ${errors.productName ? "border-red-500" : "border-gray-200"}`}
+              placeholder="e.g. iPhone 15"
+            />
+            {errors.productName && <p className="text-xs text-red-600 mt-1">{errors.productName}</p>}
+          </label>
 
-          {/* Supplier */}
+          {/* Price */}
+          <label className="block">
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+              <FaRupeeSign /> <span>Price</span>
+            </div>
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className={`w-full p-2 border rounded ${errors.price ? "border-red-500" : "border-gray-200"}`}
+              placeholder="e.g. 99999"
+              min={0}
+            />
+            {errors.price && <p className="text-xs text-red-600 mt-1">{errors.price}</p>}
+          </label>
+
+          {/* Stock */}
+          <label className="block">
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+              <FaBoxes /> <span>Stock</span>
+            </div>
+            <input
+              type="number"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              className={`w-full p-2 border rounded ${errors.stock ? "border-red-500" : "border-gray-200"}`}
+              placeholder="e.g. 50"
+              min={0}
+            />
+            {errors.stock && <p className="text-xs text-red-600 mt-1">{errors.stock}</p>}
+          </label>
+
+         
+
+          {/* Supplier (uses supplierId now) */}
           <label className="block md:col-span-2">
             <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
               <FaUserTie /> <span>Supplier</span>
             </div>
             <select
               className="w-full p-2 border rounded border-gray-200"
-              value={supplierName}
-              onChange={(e) => setSupplierName(e.target.value)}
+              value={supplierId}
+              onChange={(e) => setSupplierId(e.target.value)}
             >
-              <option value="">Select supplier (optional)</option>
+              <option value="">Select supplier</option>
               {suppliers.map((s) => (
-                <option key={s.id} value={s.name}>
+                <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
@@ -303,17 +252,10 @@ const ProductForm = ({
 
         {/* Actions */}
         <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border rounded bg-white hover:bg-gray-50"
-          >
+          <button type="button" onClick={onClose} className="px-4 py-2 border rounded bg-white hover:bg-gray-50">
             Cancel
           </button>
-          <button
-            type="submit"
-            className="px-4 py-2 rounded bg-amber-600 text-white hover:bg-amber-700 flex items-center gap-2"
-          >
+          <button type="submit" className="px-4 py-2 rounded bg-amber-600 text-white hover:bg-amber-700 flex items-center gap-2">
             <FaSave />
             {initialData ? "Update" : "Save"}
           </button>

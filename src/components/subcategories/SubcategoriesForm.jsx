@@ -68,15 +68,7 @@ const SubcategoriesForm = ({
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Name */}
-          <div className="sm:col-span-2">
-            <label className="text-sm text-gray-600">Name</label>
-            <input
-              className="w-full border p-2 rounded mt-1"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
+          
 
           {/* Category */}
           <div className="sm:col-span-2">
@@ -96,6 +88,16 @@ const SubcategoriesForm = ({
                 ))
               )}
             </select>
+          </div>
+
+          {/* Name */}
+          <div className="sm:col-span-2">
+            <label className="text-sm text-gray-600">Sub Category Name</label>
+            <input
+              className="w-full border p-2 rounded mt-1"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
         </div>
 
